@@ -1,9 +1,10 @@
 
 from datetime import datetime, timedelta
+import os
 import sqlite3
 
-from ObjectsGai import ExchangeRateItem
-from CoinBaseApi import CoinBaseApi
+from dto.ObjectsGai import ExchangeRateItem
+from api.CoinBaseApi import CoinBaseApi
 
 class ExchangeRateData:
     table_name = "ExchangeRateData"
@@ -105,11 +106,30 @@ class ExchangeRateData:
             return_list.append(item)
         return return_list
 
-    def getDbFullPath(coin, currency, path):
+    def getDbFullPath(coin : str, currency : str, path : str):
+        """get path to db
+
+        Args:
+            coin (str): par example BTC
+            currency (str): par example ETH
+            path (str): relative path, put / after folder as well
+
+        Returns:
+            str: complete filepath (relative)
+        """
+        #try to create missing folder
+        if not os.path.isdir(path):
+            os.mkdir(path)
         filename = f"{coin}_{currency}_echange_db.sqlite"
         return f"{path}{filename}"
 
-    def insert_item(item : ExchangeRateItem, full_path):
+    def insert_item(item : ExchangeRateItem, full_path : str):
+        """simple insert into db
+
+        Args:
+            item (ExchangeRateItem): entry to insert
+            full_path (str): file path
+        """
         #TODO: NONE issue
         conn = sqlite3.connect(full_path)
         conn.execute(ExchangeRateItem.get_sqlite_create_table_query())
@@ -123,6 +143,13 @@ if __name__ == "__main__":
     coin = "BTC"
     currency = "EUR"
     start =  datetime(2013, 8, 1, 0, 0, 0, 0)
-    full_path = ExchangeRateData.getDbFullPath(coin, currency, "")
-    ExchangeRateData.fillDb(coin, currency, start, full_path)
+    full_path = ExchangeRateData.getDbFullPath(coin, currency, "db")
+    #ExchangeRateData.fillDb(coin, currency, start, full_path)
+    items = ExchangeRateData.get_all_items(full_path)
+    outF = open("test.csv", "w")
+    outF.write("unix,low,high,open,close,volume,date\n")
+    for ex_item in items:
+        line_to_write = f"{ex_item.unix};{ex_item.low};{ex_item.high};{ex_item.open};{ex_item.close};{ex_item.volume};{ex_item.date}\n"
+        outF.write(line_to_write)
+    outF.close()
 

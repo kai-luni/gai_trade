@@ -4,7 +4,7 @@ import time
 import unittest
 
 from db.exchange_rate_data_sql import ExchangeRateData
-from ObjectsGai import ExchangeRateItem
+from dto.ObjectsGai import ExchangeRateItem
 
 
 class TestExchangeRateDataSql(unittest.TestCase):
@@ -12,7 +12,7 @@ class TestExchangeRateDataSql(unittest.TestCase):
         entry = ExchangeRateItem()
         entry.high = 1.
         entry.low = .5
-        path_db = ExchangeRateData.getDbFullPath("BTC", "EUR", "test_db")
+        path_db = ExchangeRateData.getDbFullPath("BTC", "EUR", "test_db/")
         if os.path.isfile(path_db):
             ExchangeRateData.delete_all_items(path_db)
         ExchangeRateData.insert_item(entry, path_db)
