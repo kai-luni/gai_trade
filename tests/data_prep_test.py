@@ -23,17 +23,17 @@ class TestDataPrep(unittest.TestCase):
         self.assertEqual(len(volume_matrix_scaled), 7)
 
         self.assertAlmostEqual(price_matrix[0][1][0], 15.)
-        self.assertAlmostEqual(price_matrix_scaled[0][1][0], 0.)
+        self.assertAlmostEqual(price_matrix_scaled[0][1][0], 0.3009039)
 
         self.assertAlmostEqual(price_matrix[-1][-1][0], 7500.)
-        self.assertAlmostEqual(price_matrix_scaled[-1][0][0], -1.)
-        self.assertAlmostEqual(price_matrix_scaled[-1][1][0], 0.)
-        self.assertAlmostEqual(price_matrix_scaled[-1][2][0], 1.)
+        self.assertAlmostEqual(price_matrix_scaled[-1][0][0], 0.)
+        self.assertAlmostEqual(price_matrix_scaled[-1][1][0], 0.6018078)
+        self.assertAlmostEqual(price_matrix_scaled[-1][2][0], 1.0)
 
         self.assertAlmostEqual(volume_matrix[-2][1][0], 7.)
-        self.assertAlmostEqual(volume_matrix_scaled[-2][0][0], -1.)
-        self.assertAlmostEqual(volume_matrix_scaled[-2][1][0], 0.3333333)
-        self.assertAlmostEqual(volume_matrix_scaled[-2][2][0], 1.)
+        self.assertAlmostEqual(volume_matrix_scaled[-2][0][0], 0.)
+        self.assertAlmostEqual(volume_matrix_scaled[-2][1][0], 0.0199999999)
+        self.assertAlmostEqual(volume_matrix_scaled[-2][2][0], 0.0300000000)
 
     def test_combine_data(self):
         """test that combining of data works
@@ -53,14 +53,15 @@ class TestDataPrep(unittest.TestCase):
 
         self.assertAlmostEqual(combined_data[-2][1][1], 7.)
 
-        self.assertAlmostEqual(combined_data[0][1][2], 0.)
-        self.assertAlmostEqual(combined_data[-1][0][2], -1.)
-        self.assertAlmostEqual(combined_data[-1][1][2], 0.)
-        self.assertAlmostEqual(combined_data[-1][2][2], 1.)
+        print(combined_data[0][1][2])
+        self.assertAlmostEqual(combined_data[0][1][2][0], 0.300903915)
+        self.assertAlmostEqual(combined_data[-1][0][2][0], .0)
+        self.assertAlmostEqual(combined_data[-1][1][2][0], 0.60180783)
+        self.assertAlmostEqual(combined_data[-1][2][2][0], 1.)
 
-        self.assertAlmostEqual(combined_data[-2][0][3], -1.)
-        self.assertAlmostEqual(combined_data[-2][1][3], 0.3333333)
-        self.assertAlmostEqual(combined_data[-2][2][3], 1.)
+        self.assertAlmostEqual(combined_data[-2][0][3][0], .0)
+        self.assertAlmostEqual(combined_data[-2][1][3][0], 0.0199999999)
+        self.assertAlmostEqual(combined_data[-2][2][3][0], .030000000)
 
     def test_normalize_window_advanced(self):
         test_list_one = np.array([1., 2., 3., 4.]).reshape(-1, 1) 
@@ -86,8 +87,5 @@ class TestDataPrep(unittest.TestCase):
         self.assertAlmostEqual(DataPrep.normalize_window_advanced_rewind(normalized_final_two[0], test_list_two, 2.), test_list_two[0])
         self.assertAlmostEqual(DataPrep.normalize_window_advanced_rewind(normalized_final_two[1], test_list_two, 2.), test_list_two[1])
         self.assertAlmostEqual(DataPrep.normalize_window_advanced_rewind(normalized_final_two[2], test_list_two, 2.), test_list_two[2])
-
-    def test_true(self):
-        self.assertTrue(True)
 
 

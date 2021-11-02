@@ -4,7 +4,15 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 
 class DataPrep:
-    def combine_data(datalist):
+    def combine_data(datalist : list):
+        """combine data for several inputs in neural networks
+
+        Args:
+            datalist (list): [description]
+
+        Returns:
+            [type]: [description]
+        """
         if len(datalist) < 2:
             return datalist
         return_list = []
@@ -16,13 +24,26 @@ class DataPrep:
                     combined_values.append(datalist[k][i][j])
                 interval_list.append(combined_values)
             return_list.append(interval_list)
-        return return_list
+        return np.array(return_list)
 
     def get_window_backwards(sequence_length):
         print("")
 
 
-    def prepare_data_matrix(prices, dates, volumes, seq_len=30, scale_ranges=[True, True]):
+    def prepare_data_matrix(prices : list, dates : list, volumes : list, seq_len=30):
+        """create a form of data were everything is available in the sequence length
+           lets say prices = [1,2,3,4] and seq_len=2 : return [[1,2],[2,3],[3,4]]
+
+        Args:
+            prices (list): list of exchange rates
+            dates (list): list of date related to 'prices' and 'volumes'
+            volumes (list): list of volumes
+            seq_len (int, optional): [description]. Defaults to 30. Length of sequences.
+
+        Returns:
+            [type]: [description]
+        """
+        #TODO: those scaler are an interesting topic to be investigated further for accuracy gains
         price_matrix = []
         price_matrix_scaled = []
         return_dates = []
@@ -30,25 +51,35 @@ class DataPrep:
         return_vols_scaled = []
         for index in range(len(prices)-seq_len+1):
             price_matrix.append(prices[index:index+seq_len])
-            if scale_ranges[0] == True:
-                prices_transformed = [((float(p[0]) / float(prices[index][0])) - 1) for p in prices[index:index+seq_len]]
-                price_matrix_scaled.append(prices_transformed)
             return_dates.append(dates[index]+datetime.timedelta(days=seq_len))
             return_vols.append(volumes[index:index+seq_len])
-            if scale_ranges[1] == True:
-                scaler = MinMaxScaler(feature_range=(-1, 1))
-                scaler = scaler.fit(volumes[index:index+seq_len])
-                #volumes_transformed = scaler.transform(volumes[index:index+seq_len])
-                volumes_transformed = [((float(p[0]) / float(volumes[index][0])) - 1) for p in volumes[index:index+seq_len]]
-                return_vols_scaled.append(volumes_transformed)
-        max_val_price = np.max(price_matrix_scaled) if np.max(price_matrix_scaled) > abs(np.min(price_matrix_scaled)) else abs(np.min(price_matrix_scaled))
-        max_val_volume = np.max(return_vols_scaled) if np.max(return_vols_scaled) > abs(np.min(return_vols_scaled)) else abs(np.min(return_vols_scaled))
-        print(f"max price {max_val_price} max vol {max_val_volume}") 
+
+            # normalize prices
+            # scaler = MinMaxScaler(feature_range=(0, 1))
+            # scaler = scaler.fit(prices[index:index+seq_len])
+            # prices_transformed = scaler.transform(prices[index:index+seq_len])
+            #prices_transformed = [((float(p[0]) / float(prices[index][0])) - 1) for p in prices[index:index+seq_len]]
+            prices_transformed = DataPrep.normalize_window_advanced(prices[index:index+seq_len])
+            price_matrix_scaled.append(np.array(prices_transformed).reshape(-1,1))
+
+            # normalize volumes
+            # scaler = MinMaxScaler(feature_range=(0, 1))
+            # scaler = scaler.fit(volumes[index:index+seq_len])
+            # volumes_transformed = scaler.transform(volumes[index:index+seq_len])
+            #volumes_transformed = [((float(p[0]) / float(volumes[index][0])) - 1) for p in volumes[index:index+seq_len]]
+            volumes_transformed = DataPrep.normalize_window_advanced(volumes[index:index+seq_len])
+            return_vols_scaled.append(np.array(volumes_transformed).reshape(-1,1))
+            
+        # max_val_price = np.max(price_matrix_scaled) if np.max(price_matrix_scaled) > abs(np.min(price_matrix_scaled)) else abs(np.min(price_matrix_scaled))
+        # max_val_volume = np.max(return_vols_scaled) if np.max(return_vols_scaled) > abs(np.min(return_vols_scaled)) else abs(np.min(return_vols_scaled))
+        # print(f"max price {max_val_price} max vol {max_val_volume}") 
         price_matrix_scaled_final = np.array(price_matrix_scaled) / 1.66166 
+        price_matrix_scaled_final[price_matrix_scaled_final>1.] = 1.
+        price_matrix_scaled_final[price_matrix_scaled_final<-1.] = -1.
         volume_matrix_scaled_final = np.array(return_vols_scaled) / 20    
         volume_matrix_scaled_final[volume_matrix_scaled_final>1.] = 1.
         volume_matrix_scaled_final[volume_matrix_scaled_final<-1.] = -1.    
-        return price_matrix, return_dates, return_vols, price_matrix_scaled_final.tolist(), volume_matrix_scaled_final.tolist()        
+        return np.array(price_matrix), np.array(return_dates), return_vols, price_matrix_scaled_final, volume_matrix_scaled_final        
         
 
 
@@ -64,6 +95,14 @@ class DataPrep:
         return price_matrix, return_dates
 
     def normalize_window_advanced(window):
+        """a simple normalization, that only works for up to 2x variance
+
+        Args:
+            window (list): values to normalize
+
+        Returns:
+            list: normalized values
+        """
         return [((float(p[0]) / float(window[0][0])) - 1) for p in window]
         # reference = window[0][0]
         # max_multiplied_limited = []
