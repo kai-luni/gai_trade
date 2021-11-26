@@ -3,8 +3,8 @@ import os
 
 from numpy import append
 
-from ObjectsGai import ExchangeRateItem
-from CoinBaseApi import CoinBaseApi
+from dto.ObjectsGai import ExchangeRateItem
+from api.CoinBaseApi import CoinBaseApi
 
 
 class ExchangeRateData:

@@ -4,7 +4,7 @@ import json
 import os
 import requests
 
-from ObjectsGai import ExchangeRateItem
+from dto.ObjectsGai import ExchangeRateItem
 
 class CoinBaseApi:
     def fetch_daily_data(symbol, start, end):
