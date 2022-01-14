@@ -3,26 +3,6 @@ from datetime import datetime, time, timedelta
 from ObjectsGai import ExchangeRateItem
 
 class BitcoinDeApi:
-    def FilterExchangeItems(start_date : datetime, end_date : datetime, exchange_items: 'list[ExchangeRateItem]'):
-        
-        found_items = []
-        search_first_item = True
-        for item in exchange_items:
-            if search_first_item:
-                if item.date.year < start_date.year:
-                    continue
-                if item.date.month < start_date.month:
-                    continue
-                if item.date.day < start_date.day:
-                    continue
-                # if item.date.hour < start_date.hour:
-                #     continue
-                search_first_item = False
-            if item.date > end_date:
-                return found_items
-            found_items.append(item)
-        return found_items
-
     def GetFileName(coin : str, from_date : str, to_date : str):
         """Get filename of csv with exchange items
 

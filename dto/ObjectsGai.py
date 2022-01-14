@@ -42,6 +42,11 @@ class TradeSellParams:
     #factor above twenty week average to sell
     above_twenty = 1.05
 
+    buy_at_gfi = 20
+    sell_at_gfi = 80
+
+    coin = "BTC"
+
     days_buy = []
 
     #how many days at least between two sales
@@ -69,23 +74,21 @@ class TradeSellParams:
     start = datetime(1, 1, 1, 1, 1, 1, 1)
 
 
-
-
-
 class ExchangeRateItem:
     unix = 0
+    date = datetime(1, 1, 1, 1, 1, 1, 1)
     low = 0.
     high = 0.
     open = 0.
     close = 0.
     volume = 0.
-    date = datetime(1, 1, 1, 1, 1, 1, 1)
     #twenty week average, might be None
     twenty_week_average = None
 
     def get_sqlite_create_table_query():
         sql ='''CREATE TABLE IF NOT EXISTS ExchangeRateData(
             unix INT NOT NULL,
+            date STRING NOT NULL,
             low FLOAT NOT NULL,
             high FLOAT NOT NULL,
             open FLOAT NOT NULL,
@@ -96,4 +99,4 @@ class ExchangeRateItem:
         return sql
 
     def get_sqlite_headers():
-        return "unix,low,high,open,close,volume,twenty_week_average"
+        return "unix,date,low,high,open,close,volume,twenty_week_average"

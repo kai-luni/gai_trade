@@ -4,6 +4,8 @@ import json
 import os
 import requests
 
+print(os.getcwd())
+
 from dto.ObjectsGai import ExchangeRateItem
 
 class CoinBaseApi:
@@ -30,7 +32,7 @@ class CoinBaseApi:
         else:
             print("Did not receieve OK response from Coinbase API")
 
-    def getDataCoinbaseDaily(symbol : str, start : datetime, end : datetime):
+    def getDataCoinbase(symbol : str, start : datetime, end : datetime, granularity : int = 86400):
         """Get daily currency data for a coin from coinbase
 
         Args:
@@ -43,7 +45,7 @@ class CoinBaseApi:
         """
         pair_split = symbol.split('/')  # symbol must be in format XXX/XXX ie. BTC/EUR
         symbol = pair_split[0] + '-' + pair_split[1]
-        url = f'https://api.pro.coinbase.com/products/{symbol}/candles?granularity=86400&start={start.astimezone(tz.UTC).strftime("%Y-%m-%d %H:%M:%S")}&end={end.astimezone(tz.UTC).strftime("%Y-%m-%d %H:%M:%S")}'
+        url = f'https://api.pro.coinbase.com/products/{symbol}/candles?granularity={granularity}&start={start.astimezone(tz.UTC).strftime("%Y-%m-%d %H:%M:%S")}&end={end.astimezone(tz.UTC).strftime("%Y-%m-%d %H:%M:%S")}'
         response = requests.get(url)
         if response.status_code == 200:  # check to make sure the response from server is good
             return_list = []
@@ -68,6 +70,7 @@ class CoinBaseApi:
 
 if __name__ == "__main__":
     start =  datetime(2021, 8, 1, 0, 0, 0, 0)
-    end =  datetime(2021, 8, 27, 23, 59, 59, 0)
-    data = CoinBaseApi.getDataCoinbaseDaily("LTC/EUR", start, end)
-    print(data)
+    end =  datetime(2021, 8, 1, 23, 59, 59, 0)
+    data_entries : 'list[ExchangeRateItem]' = CoinBaseApi.getDataCoinbase("LTC/EUR", start, end, granularity=900)
+    for entry in data_entries:
+        print(entry.date)

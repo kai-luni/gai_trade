@@ -80,7 +80,7 @@ class ExchangeRateData:
         start =  from_date
         end =  datetime(from_date.year, from_date.month, from_date.day, 23, 59, 59, 0)
         while (start - timedelta(days=1)) < datetime.now():
-            data = CoinBaseApi.getDataCoinbaseDaily(f"{coin}/{currency}", start, end)
+            data = CoinBaseApi.getDataCoinbase(f"{coin}/{currency}", start, end)
             if len(data) == 0:
                 print(f"No entry for {start}")
                 start = start  + timedelta(days=1)
