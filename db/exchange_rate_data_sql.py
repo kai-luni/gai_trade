@@ -11,7 +11,7 @@ class ExchangeRateData:
 
     def add_entry(day_data : ExchangeRateItem, full_path : str):
         """Add an ExchangeRateItem to db, can be empty db as well
-            One entry per hour max, no update yet (when there is n entry in an hour it stays)
+            One entry per hour max, no update yet (when there is an entry in an hour it stays)
 
         Args:
             day_data (ExchangeRateItem): represent one day of excange rate
@@ -167,9 +167,9 @@ class ExchangeRateData:
         conn.close()
 
 if __name__ == "__main__":
-    coin = "DASH"
+    coin = "ETH"
     currency = "EUR"
-    start =  datetime(2018, 1, 1, 0, 0, 0, 0)
+    start =  datetime(2016, 12, 1, 0, 0, 0, 0)
     granularity = 86400
     full_path = ExchangeRateData.getDbFullPath(coin, currency, "db/", granularity=granularity)
     ExchangeRateData.fillDb(coin, currency, start, full_path, granularity=granularity)

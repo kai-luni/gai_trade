@@ -1,4 +1,5 @@
 from datetime import datetime
+from locale import currency
 
 class TradeBuy:
     currency = ""
@@ -45,6 +46,7 @@ class TradeSellParams:
     buy_at_gfi = 20
     sell_at_gfi = 80
 
+    currency = "EUR"
     coin = "BTC"
 
     days_buy = []
@@ -100,3 +102,24 @@ class ExchangeRateItem:
 
     def get_sqlite_headers():
         return "unix,date,low,high,open,close,volume,twenty_week_average"
+
+class FearGreedItem:
+    unix = 0
+    date = datetime(1, 1, 1, 1, 1, 1, 1)
+    index = -1
+    index_text = "Not Initialized"
+
+    def get_sqlite_create_table_query():
+        sql ='''CREATE TABLE IF NOT EXISTS FearGreedData(
+            unix INT NOT NULL,
+            date STRING NOT NULL,
+            index_fg INT NOT NULL,
+            index_text STRING NOT NULL
+            )'''
+        return sql
+
+    def get_sqlite_headers():
+        return "unix,date,index_fg,index_text"
+
+    def get_table_name():
+        return "FearGreedData"

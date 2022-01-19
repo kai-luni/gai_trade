@@ -4,8 +4,6 @@ import json
 import os
 import requests
 
-print(os.getcwd())
-
 from dto.ObjectsGai import ExchangeRateItem
 
 class CoinBaseApi:
