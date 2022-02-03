@@ -4,78 +4,79 @@ from api.alternative_fear_greed_api import AlternativeFearGreedApi
 from db.exchange_rate_data_sql import ExchangeRateData
 from dto.ObjectsGai import ExchangeRateItem, TradeSellParams, FearGreedItem
 
-def buy(money : float, coins : float, currency : float):
-    if money <= 0:
-        return money, coins
-    return 0, coins + (money / currency)
+class AlgoSellFear:
+    def buy(money : float, coins : float, currency : float):
+        if money <= 0:
+            return money, coins
+        return 0, coins + (money / currency)
 
-def sell(money : float, coins : float, currency : float):
-    if coins <= 0:
-        return money, coins
-    return money + (coins * currency), 0
+    def sell(money : float, coins : float, currency : float):
+        if coins <= 0:
+            return money, coins
+        return money + (coins * currency), 0
 
-def trade(params : TradeSellParams, debug=False):
-    full_path = ExchangeRateData.getDbFullPath(params.coin, params.currency, "./db/")
-    all_entries : 'list[ExchangeRateItem]' = ExchangeRateData.get_all_items(full_path)
-    filtered_entries : 'list[ExchangeRateItem]' = ExchangeRateData.filter_exchange_items(params.start, params.end, all_entries)
-    fear_greed_entries = AlternativeFearGreedApi(5000)
+    def trade(params : TradeSellParams, debug=False):
+        full_path = ExchangeRateData.getDbFullPath(params.coin, params.currency, "./db/")
+        all_entries : 'list[ExchangeRateItem]' = ExchangeRateData.get_all_items(full_path)
+        filtered_entries : 'list[ExchangeRateItem]' = ExchangeRateData.filter_exchange_items(params.start, params.end, all_entries)
+        fear_greed_entries = AlternativeFearGreedApi(5000)
 
-    coins = 1
-    money = 0
-    dates_sell = []
-    dates_buy = []
-    last_sell_rate = 0.
+        coins = 1
+        money = 0
+        dates_sell = []
+        dates_buy = []
+        last_sell_rate = 0.
 
-    # for entry in filtered_entries[params.days_look_back, len(filtered_entries)]:
-    #     print(f"{entry.unix} {entry.date}")
-    for i in range(params.days_look_back, len(filtered_entries)):
-        today = filtered_entries[i].date
-        currency_entry : ExchangeRateItem = filtered_entries[i]
-        greed_fear_entry = fear_greed_entries.get_entry_for_day(filtered_entries[i].date.day, filtered_entries[i].date.month, filtered_entries[i].date.year)
-        if greed_fear_entry == None:
-            greed_fear_entry = FearGreedItem()
+        # for entry in filtered_entries[params.days_look_back, len(filtered_entries)]:
+        #     print(f"{entry.unix} {entry.date}")
+        for i in range(params.days_look_back, len(filtered_entries)):
+            today = filtered_entries[i].date
+            currency_entry : ExchangeRateItem = filtered_entries[i]
+            greed_fear_entry = fear_greed_entries.get_entry_for_day(filtered_entries[i].date.day, filtered_entries[i].date.month, filtered_entries[i].date.year)
+            if greed_fear_entry == None:
+                greed_fear_entry = FearGreedItem()
 
-        ### sell
-        today_exchange_rate = currency_entry.close
-        first_entry_look_back_exchange = filtered_entries[i-params.days_look_back].close
-        factor_change_value = today_exchange_rate / first_entry_look_back_exchange
-        greed_fear_index_sell = greed_fear_entry.index if  greed_fear_entry.index > -1 else 100
-        if coins > 0 and factor_change_value > params.percent_change_sell and greed_fear_index_sell > 25:
-            money, coins = sell(money, coins, currency_entry.close)
-            dates_sell.append(today)
-            last_sell_rate = today_exchange_rate
-            if debug:
-                print(f"sell on {today}, we now have {money} EUR")
+            ### sell
+            today_exchange_rate = currency_entry.close
+            first_entry_look_back_exchange = filtered_entries[i-params.days_look_back].close
+            factor_change_value = today_exchange_rate / first_entry_look_back_exchange
+            greed_fear_index_sell = greed_fear_entry.index if  greed_fear_entry.index > -1 else 100
+            if coins > 0 and factor_change_value > params.percent_change_sell and greed_fear_index_sell > 25:
+                money, coins = AlgoSellFear.sell(money, coins, currency_entry.close)
+                dates_sell.append(today)
+                last_sell_rate = today_exchange_rate
+                if debug:
+                    print(f"sell on {today}, we now have {money} EUR")
 
-        ### buy
-        if greed_fear_entry.index == -1 and today.day != 1:
-            continue
-        if greed_fear_entry.index < params.buy_at_gfi and money > 0 and today_exchange_rate < last_sell_rate:
-            money, coins = buy(money, coins, currency_entry.close)
-            dates_buy.append(today)
-            if debug:
-                print(f"buy on {filtered_entries[i].date}, we now have {coins} coins.")
-        
-    final_coins = coins + (money/filtered_entries[-1].close)
-    if debug:
-        print(f"Final Coins: {final_coins}, {params.days_look_back} {params.buy_at_gfi} {params.percent_change_sell}")
-        x = [i.date for i in filtered_entries]
-        y = [i.close for i in filtered_entries]
-        create_diagram(x, y, dates_buy, dates_sell)
-    return final_coins
+            ### buy
+            if greed_fear_entry.index == -1 and today.day != 1:
+                continue
+            if greed_fear_entry.index < params.buy_at_gfi and money > 0 and today_exchange_rate < last_sell_rate:
+                money, coins = AlgoSellFear.buy(money, coins, currency_entry.close)
+                dates_buy.append(today)
+                if debug:
+                    print(f"buy on {filtered_entries[i].date}, we now have {coins} coins.")
+            
+        final_coins = coins + (money/filtered_entries[-1].close)
+        if debug:
+            print(f"Final Coins: {final_coins}, {params.days_look_back} {params.buy_at_gfi} {params.percent_change_sell}")
+            x = [i.date for i in filtered_entries]
+            y = [i.close for i in filtered_entries]
+            AlgoSellFear.create_diagram(x, y, dates_buy, dates_sell)
+        return final_coins
 
-def create_diagram(x, y, buy_dates, sell_dates):
-    import matplotlib.pyplot as plt
-    # plot
-    plt.plot(x,y)
-    for buy_date in buy_dates:
-        plt.axvline(x=buy_date, color="green")
-    for sell_date in sell_dates:
-        plt.axvline(x=sell_date, color="red")
-    # beautify the x-labels
-    plt.gcf().autofmt_xdate()
+    def create_diagram(x, y, buy_dates, sell_dates):
+        import matplotlib.pyplot as plt
+        # plot
+        plt.plot(x,y)
+        for buy_date in buy_dates:
+            plt.axvline(x=buy_date, color="green")
+        for sell_date in sell_dates:
+            plt.axvline(x=sell_date, color="red")
+        # beautify the x-labels
+        plt.gcf().autofmt_xdate()
 
-    plt.savefig("test.png")
+        plt.savefig("test.png")
 
 
 
@@ -89,7 +90,7 @@ if __name__ == "__main__":
 
     params.coin = "BTC"
     params.currency = "EUR"
-    trade(params, debug = True)
+    AlgoSellFear.trade(params, debug = True)
 
     exit(0)
 
@@ -102,22 +103,22 @@ if __name__ == "__main__":
                 params.buy_at_gfi = bf
 
                 params.coin = "BTC"
-                coins_btc = trade(params)
+                coins_btc = AlgoSellFear.trade(params)
                 if coins_btc < 2.:
                     continue
 
                 params.coin = "ETH"
-                coins_eth = trade(params)
+                coins_eth = AlgoSellFear.trade(params)
                 if coins_eth < 2.:
                     continue
 
                 params.coin = "LTC"
-                coins_ltc = trade(params)
+                coins_ltc = AlgoSellFear.trade(params)
                 if coins_ltc < 2.:
                     continue
 
                 params.coin = "XLM"
-                coins_xlm = trade(params)
+                coins_xlm = AlgoSellFear.trade(params)
                 if coins_xlm < 1.:
                     continue
                 

@@ -29,7 +29,7 @@ class FearGreedData:
         Returns:
             bool: success
         """
-        data_entries = AlternativeFearGreedApi.getData(days_back)
+        data_entries = AlternativeFearGreedApi(days_back)._all_entries
         if len(data_entries) == 0:
             print("No entries found")
         for entry in data_entries:
@@ -55,6 +55,7 @@ class FearGreedData:
             return_list.append(item)
         return return_list
 
+    @staticmethod
     def get_db_full_path(path : str):
         """get path to db
 
