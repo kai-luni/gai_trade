@@ -18,13 +18,14 @@ class GaiTradeBot:
     path_db_ex = ExchangeRateData.getDbFullPath(coin, currency, "db/")
     ExchangeRateData.fillDb(coin, currency, datetime(2022,1,1) + timedelta(days=-10), path_db_ex)
 
+    print("Trade")
     params = TradeSellParams()
     params.start = datetime(2015, 10, 1, 0, 0, 0, 0)
     params.end = datetime.today()
-    params.days_look_back = 165
-    params.buy_at_gfi = 11
-    params.percent_change_sell = 4.64
-    params.coin = "LTC"
+    params.days_look_back = 105
+    params.buy_at_gfi = 8
+    params.percent_change_sell = 4.2
+    params.coin = coin
     params.currency = "EUR"
     AlgoSellFear.trade(params, debug = True)
 

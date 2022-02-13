@@ -64,6 +64,8 @@ class TestDataPrep(unittest.TestCase):
         self.assertAlmostEqual(combined_data[-2][2][3][0], .030000000)
 
     def test_normalize_window_advanced(self):
+        """test normalization backwarks, needed for deep learning training
+        """
         test_list_one = np.array([1., 2., 3., 4.]).reshape(-1, 1) 
         normalized_list_one = DataPrep.normalize_window_advanced(test_list_one)
         normalized_final_one = np.array(normalized_list_one) / 3.

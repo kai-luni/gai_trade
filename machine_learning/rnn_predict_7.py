@@ -11,6 +11,21 @@ from ExchangeRateData import ExchangeRateData
 from display.Plots import GaiPlot
 
 class RnnPredict:
+    """These algos are a bit old and some things need to be adjusted
+       What they do as of my memory:
+       1. The data is normalized in a way that day one is always 0, relative to day one the exchange rate goes between -1. and 1.
+       2. Trained with LSTM
+       3. Profit (not yet)
+
+       Algos were trained with daily data, I got a good accuracy but still worthless result for profit.
+       Future ideas:
+       1. Go down to 15 minute data points
+       2. Include fear greed index data
+
+       For the daily data, the data seems to be too unpredictable. Maybe some future super intelligence which reads the news will be able to predict :)
+
+       There are older files here too: rnn_predict_x, they are mostly the same but older. Created a new file on breaking changes.
+    """
     def train():
         price_items = ExchangeRateData.get_exchange_items("./db/BTC_EUR_echange_db.csv")
         price_items = ExchangeRateData.filter_exchange_items(price_items, datetime(2016, 1, 1), datetime(2022, 12, 30))

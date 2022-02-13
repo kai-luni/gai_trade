@@ -2,24 +2,58 @@ from datetime import datetime, timedelta
 
 from api.alternative_fear_greed_api import AlternativeFearGreedApi
 from db.exchange_rate_data_sql import ExchangeRateData
+from db.fear_greed_data_sql import FearGreedData
+from data.fear_greed_data_reader import FearGreedDataReader
 from dto.ObjectsGai import ExchangeRateItem, TradeSellParams, FearGreedItem
+
+#TODO: finish this sqlite reader
+_fear_greed_entries = AlternativeFearGreedApi(5000)
 
 class AlgoSellFear:
     def buy(money : float, coins : float, currency : float):
+        """calculate buy operation
+
+        Args:
+            money (float): money owned
+            coins (float): coins owned
+            currency (float): exchange rate
+
+        Returns:
+            float, float: money owned (always 0), coins owned after buying 
+        """
         if money <= 0:
             return money, coins
         return 0, coins + (money / currency)
 
     def sell(money : float, coins : float, currency : float):
+        """calculate buy operation
+
+        Args:
+            money (float): money owned
+            coins (float): coins owned
+            currency (float): exchange rate 
+
+        Returns:
+            float, float: money owned, coins owned (always 0) after selling
+        """
         if coins <= 0:
             return money, coins
         return money + (coins * currency), 0
 
     def trade(params : TradeSellParams, debug=False):
+        """simulate trading operations for a timerange
+
+        Args:
+            params (TradeSellParams): parameters, check out the object for details
+            debug (bool, optional): give out some debug information. Defaults to False.
+
+        Returns:
+            float: final coins
+        """
         full_path = ExchangeRateData.getDbFullPath(params.coin, params.currency, "./db/")
         all_entries : 'list[ExchangeRateItem]' = ExchangeRateData.get_all_items(full_path)
         filtered_entries : 'list[ExchangeRateItem]' = ExchangeRateData.filter_exchange_items(params.start, params.end, all_entries)
-        fear_greed_entries = AlternativeFearGreedApi(5000)
+        
 
         coins = 1
         money = 0
@@ -32,7 +66,7 @@ class AlgoSellFear:
         for i in range(params.days_look_back, len(filtered_entries)):
             today = filtered_entries[i].date
             currency_entry : ExchangeRateItem = filtered_entries[i]
-            greed_fear_entry = fear_greed_entries.get_entry_for_day(filtered_entries[i].date.day, filtered_entries[i].date.month, filtered_entries[i].date.year)
+            greed_fear_entry = _fear_greed_entries.get_entry_for_day(filtered_entries[i].date.day, filtered_entries[i].date.month, filtered_entries[i].date.year)
             if greed_fear_entry == None:
                 greed_fear_entry = FearGreedItem()
 
@@ -62,10 +96,19 @@ class AlgoSellFear:
             print(f"Final Coins: {final_coins}, {params.days_look_back} {params.buy_at_gfi} {params.percent_change_sell}")
             x = [i.date for i in filtered_entries]
             y = [i.close for i in filtered_entries]
-            AlgoSellFear.create_diagram(x, y, dates_buy, dates_sell)
+            AlgoSellFear.create_diagram(x, y, dates_buy, dates_sell, params.coin)
         return final_coins
 
-    def create_diagram(x, y, buy_dates, sell_dates):
+    def create_diagram(x : 'list[datetime]', y : 'list[float]', buy_dates : 'list[datetime]', sell_dates : 'list[datetime]', coin_name : str):
+        """write a diagram of a coin with buy dates (green) and sell dates (red) for visually checking the sanity of the trading algo
+
+        Args:
+            x (list[datetime]): datetimes, like each day one datetime   
+            y (list[float]): same length as x, with exchange rate of that day  
+            buy_dates (list[datetime]): dates the algo bought
+            sell_dates (list[datetime]): dates the algo sold
+            coin_name (str): name of coin for filename
+        """
         import matplotlib.pyplot as plt
         # plot
         plt.plot(x,y)
@@ -76,7 +119,7 @@ class AlgoSellFear:
         # beautify the x-labels
         plt.gcf().autofmt_xdate()
 
-        plt.savefig("test.png")
+        plt.savefig(f"buy_sell_output_{coin_name}.png")
 
 
 
@@ -88,13 +131,13 @@ if __name__ == "__main__":
     params.buy_at_gfi = 11
     params.percent_change_sell = 4.64
 
-    params.coin = "BTC"
-    params.currency = "EUR"
-    AlgoSellFear.trade(params, debug = True)
+    # params.coin = "BTC"
+    # params.currency = "EUR"
+    # AlgoSellFear.trade(params, debug = True)
 
-    exit(0)
+    # exit(0)
 
-    for dlb in range(5, 250, 10):
+    for dlb in range(55, 250, 10):
         print(f"dlb {dlb}")
         for pcs in range(105, 770, 15):
             for bf in range(7, 15, 1):
