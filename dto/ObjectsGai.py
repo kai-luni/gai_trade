@@ -76,50 +76,8 @@ class TradeSellParams:
     start = datetime(1, 1, 1, 1, 1, 1, 1)
 
 
-class ExchangeRateItem:
-    unix = 0
-    date = datetime(1, 1, 1, 1, 1, 1, 1)
-    low = 0.
-    high = 0.
-    open = 0.
-    close = 0.
-    volume = 0.
-    #twenty week average, might be None
-    twenty_week_average = None
-
-    def get_sqlite_create_table_query():
-        sql ='''CREATE TABLE IF NOT EXISTS ExchangeRateData(
-            unix INT NOT NULL,
-            date STRING NOT NULL,
-            low FLOAT NOT NULL,
-            high FLOAT NOT NULL,
-            open FLOAT NOT NULL,
-            close FLOAT NOT NULL,
-            volume FLOAT NOT NULL,
-            twenty_week_average
-            )'''
-        return sql
-
-    def get_sqlite_headers():
-        return "unix,date,low,high,open,close,volume,twenty_week_average"
-
 class FearGreedItem:
     unix = 0
     date = datetime(1, 1, 1, 1, 1, 1, 1)
     index = -1
     index_text = "Not Initialized"
-
-    def get_sqlite_create_table_query():
-        sql ='''CREATE TABLE IF NOT EXISTS FearGreedData(
-            unix INT NOT NULL,
-            date STRING NOT NULL,
-            index_fg INT NOT NULL,
-            index_text STRING NOT NULL
-            )'''
-        return sql
-
-    def get_sqlite_headers():
-        return "unix,date,index_fg,index_text"
-
-    def get_table_name():
-        return "FearGreedData"
