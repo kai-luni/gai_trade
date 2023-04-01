@@ -38,23 +38,30 @@ class FearGreedRepo:
             except FileNotFoundError:
                 pass
 
-            # Append new data to the CSV file
-            with open(file_path, "a", newline="") as csvfile:
-                writer = csv.writer(csvfile)
-                for candle in candles:
-                    timestamp = int(candle["timestamp"])
-                    if timestamp not in existing_data:
-                        exchange_item = FearGreedItem()
-                        exchange_item.unix = timestamp
-                        exchange_item.index = int(candle["value"])
-                        exchange_item.index_text = candle["value_classification"]
-                        exchange_item.date = datetime.fromtimestamp(exchange_item.unix)
-                        human_readable_date = exchange_item.date.strftime("%Y-%m-%d %H:%M:%S")
+            # Append new data to the existing_data dictionary
+            for candle in candles:
+                timestamp = int(candle["timestamp"])
+                if timestamp not in existing_data:
+                    exchange_item = FearGreedItem()
+                    exchange_item.unix = timestamp
+                    exchange_item.index = int(candle["value"])
+                    exchange_item.index_text = candle["value_classification"]
+                    exchange_item.date = datetime.fromtimestamp(exchange_item.unix)
+                    human_readable_date = exchange_item.date.strftime("%Y-%m-%d %H:%M:%S")
 
-                        # Write the data to the CSV file
-                        writer.writerow([exchange_item.unix, exchange_item.index, exchange_item.index_text, human_readable_date])
+                    existing_data[exchange_item.unix] = [exchange_item.unix, exchange_item.index, exchange_item.index_text, human_readable_date]
+
+            # Sort the data by the unix timestamp
+            sorted_data = sorted(existing_data.values(), key=lambda x: int(x[0]))
+
+            # Write the sorted data to the CSV file
+            with open(file_path, "w", newline="") as csvfile:
+                writer = csv.writer(csvfile)
+                for row in sorted_data:
+                    writer.writerow(row)
         else:
             print("Did not receive OK response from Coinbase API")
+
 
 
     def read_csv_file(start : datetime, end : datetime, file_path="fear_greed_data.csv"):

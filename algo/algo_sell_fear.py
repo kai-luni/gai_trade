@@ -2,8 +2,6 @@ from datetime import datetime, timedelta
 
 from api.alternative_fear_greed_api import AlternativeFearGreedApi
 from db.exchange_rate_data_sql import ExchangeRateData
-from db.fear_greed_data_sql import FearGreedData
-from data.fear_greed_data_reader import FearGreedDataReader
 from dto.ObjectsGai import ExchangeRateItem, TradeSellParams, FearGreedItem
 
 #TODO: finish this sqlite reader

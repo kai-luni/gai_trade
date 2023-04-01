@@ -10,7 +10,7 @@ from dto.ExchangeRateItem import ExchangeRateItem
 class CoinBaseRepo:
 
     @staticmethod
-    def fetch_daily_data(symbol, start, end):
+    def fetch_daily_data(symbol, start, end, folder="api"):
         """
         Fetch daily currency data from Coinbase API and save it to a CSV file.
 
@@ -35,28 +35,38 @@ class CoinBaseRepo:
         if response.status_code == 200:
             # Create a CSV file or append to an existing one
             filename = f"{pair_split[0]}_{pair_split[1]}.csv"
-            write_or_append = "a" if os.path.isfile(filename) else "w"
+            filepath = f"{folder}/{filename}"
 
-            with open(filename, write_or_append) as outF:
-                candles = json.loads(response.text)
+            # Read existing data from the CSV file
+            existing_data = {}
+            if os.path.isfile(filepath):
+                with open(filepath, "r") as csvfile:
+                    reader = csv.reader(csvfile, delimiter=";")
+                    next(reader)  # skip header
+                    for row in reader:
+                        if len(row) > 0:
+                            existing_data[int(row[0])] = row
 
-                # Write the CSV header if creating a new file
-                if write_or_append == "w":
-                    outF.write("unix,low,high,open,close,volume,date\n")
+            # Update existing_data with new data from the API response
+            candles = json.loads(response.text)
+            for i in reversed(range(len(candles))):
+                unix = int(candles[i][0])
+                if unix not in existing_data:
+                    datetime_obj = datetime.fromtimestamp(unix)
+                    datetime_string = datetime_obj.strftime('%Y-%m-%d %H:%M:%S')
+                    candle_data = [str(x) for x in candles[i]]
+                    candle_data.append(datetime_string)
+                    existing_data[unix] = candle_data
 
-                # Write the candle data in reversed order (oldest to newest)
-                written_dates = set()
-                for i in reversed(range(len(candles))):
-                    datetime_obj = datetime.fromtimestamp(candles[i][0])
+            # Sort the data by the unix timestamp
+            sorted_data = sorted(existing_data.values(), key=lambda x: int(x[0]))
 
-                    # Only insert one entry per day
-                    if datetime_obj.date() not in written_dates:
-                        datetime_string = datetime_obj.strftime('%Y-%m-%d %H:%M:%S')
-                        candle_string = ";"
-                        outF.write(candle_string.join([str(x) for x in candles[i]]))
-                        outF.write(";" + datetime_string)
-                        outF.write("\n")
-                        written_dates.add(datetime_obj.date())
+            # Write the sorted data to the CSV file
+            with open(filepath, "w", newline="") as csvfile:
+                writer = csv.writer(csvfile, delimiter=";")
+                writer.writerow(["unix", "low", "high", "open", "close", "volume", "date"])
+                for row in sorted_data:
+                    writer.writerow(row)
         else:
             print("Did not receive OK response from Coinbase API")
 
