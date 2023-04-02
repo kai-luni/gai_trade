@@ -11,7 +11,7 @@ class FearGreedRepo:
     # Assuming you have an appropriate constructor and/or attributes for this class
     pass
 
-    def get_data(limit=10, file_path="fear_greed_data.csv"):
+    def get_data(limit=10, file_path="fear_greed_data.csv") -> 'list[dict]':
         """Get daily fear greed index from alternative.me and append to a CSV file.
 
         Args:
