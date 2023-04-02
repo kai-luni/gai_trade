@@ -40,4 +40,5 @@ if __name__ == "__main__":
     opens = [item.open for item in exchange_items]
     greed_indexes = [item["index"] for item in greed_items]
 
-    PCC.calculate_pcc(dates, opens, greed_indexes)
+    pcc = PCC.calculate_pcc(dates, opens, greed_indexes)
+    print(f"Pearson correlation coefficient is {pcc}")
