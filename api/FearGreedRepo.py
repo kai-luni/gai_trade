@@ -64,7 +64,7 @@ class FearGreedRepo:
 
 
 
-    def read_csv_file(start : datetime, end : datetime, file_path="fear_greed_data.csv"):
+    def read_csv_file(start : datetime, end : datetime, file_path="fear_greed_data.csv", check_data=False):
         """Reads the CSV file and returns the data as a list of dictionaries.
         Args:
             file_path (str): The path of the CSV file to read data from.
@@ -99,7 +99,8 @@ class FearGreedRepo:
                                 "human_readable_date": datetime.strptime(row[3], "%Y-%m-%d %H:%M:%S")
                             }
                             data.append(entry)
-
+        if not check_data:
+            return data
         # Check for missing dates
         date_range = set(pd.date_range(start=start or min(unique_dates), end=end or max(unique_dates), freq='D').date)
         missing_dates = date_range - unique_dates
