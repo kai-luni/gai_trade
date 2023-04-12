@@ -1,3 +1,5 @@
 numpy
 pandas
+pycoingecko
+python-dateutil
 requests
