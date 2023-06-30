@@ -1,0 +1,109 @@
+Top 2 cryptocurrencies by market cap to volume ratio for each month in the last 36 months:
+March 2023:
+  Litecoin (LTC): Market Cap to Volume Ratio = 3.14
+  Dai (DAI): Market Cap to Volume Ratio = 2.17
+February 2023:
+  Litecoin (LTC): Market Cap to Volume Ratio = 2.86
+  Solana (SOL): Market Cap to Volume Ratio = 2.51
+January 2023:
+  Solana (SOL): Market Cap to Volume Ratio = 3.82
+  Litecoin (LTC): Market Cap to Volume Ratio = 2.79
+December 2022:
+  Litecoin (LTC): Market Cap to Volume Ratio = 2.15
+  Dogecoin (DOGE): Market Cap to Volume Ratio = 1.78
+November 2022:
+  Dogecoin (DOGE): Market Cap to Volume Ratio = 5.49
+  Solana (SOL): Market Cap to Volume Ratio = 5.10
+October 2022:
+  Dogecoin (DOGE): Market Cap to Volume Ratio = 2.93
+  Solana (SOL): Market Cap to Volume Ratio = 2.60
+September 2022:
+  Binance USD (BUSD): Market Cap to Volume Ratio = 38.58
+  Solana (SOL): Market Cap to Volume Ratio = 2.93
+August 2022:
+  Ethereum Classic (ETC): Market Cap to Volume Ratio = 13.40
+  Bitcoin Cash (BCH): Market Cap to Volume Ratio = 7.34
+July 2022:
+  Binance USD (BUSD): Market Cap to Volume Ratio = 24.43
+  XRP (XRP): Market Cap to Volume Ratio = 11.48
+June 2022:
+  Binance USD (BUSD): Market Cap to Volume Ratio = 21.87
+  Solana (SOL): Market Cap to Volume Ratio = 5.51
+May 2022:
+  Binance USD (BUSD): Market Cap to Volume Ratio = 28.82
+  Solana (SOL): Market Cap to Volume Ratio = 5.92
+April 2022:
+  Solana (SOL): Market Cap to Volume Ratio = 6.14
+  Dogecoin (DOGE): Market Cap to Volume Ratio = 3.77
+March 2022:
+  Binance USD (BUSD): Market Cap to Volume Ratio = 15.84
+  Solana (SOL): Market Cap to Volume Ratio = 5.87
+February 2022:
+  Binance USD (BUSD): Market Cap to Volume Ratio = 14.44
+  Solana (SOL): Market Cap to Volume Ratio = 6.51
+January 2022:
+  Binance USD (BUSD): Market Cap to Volume Ratio = 16.41
+  Solana (SOL): Market Cap to Volume Ratio = 6.65
+December 2021:
+  Binance USD (BUSD): Market Cap to Volume Ratio = 19.83
+  Solana (SOL): Market Cap to Volume Ratio = 8.12
+November 2021:
+  Binance USD (BUSD): Market Cap to Volume Ratio = 27.54
+  Shiba Inu (SHIB): Market Cap to Volume Ratio = 19.19
+October 2021:
+  Litecoin (LTC): Market Cap to Volume Ratio = 11.26
+  Solana (SOL): Market Cap to Volume Ratio = 10.57
+September 2021:
+  Binance USD (BUSD): Market Cap to Volume Ratio = 26.45
+  Solana (SOL): Market Cap to Volume Ratio = 18.26
+August 2021:
+  Binance USD (BUSD): Market Cap to Volume Ratio = 20.32
+  Cardano (ADA): Market Cap to Volume Ratio = 9.09
+July 2021:
+  Binance USD (BUSD): Market Cap to Volume Ratio = 14.46
+  Litecoin (LTC): Market Cap to Volume Ratio = 7.72
+June 2021:
+  Binance USD (BUSD): Market Cap to Volume Ratio = 20.83
+  Dogecoin (DOGE): Market Cap to Volume Ratio = 10.15
+May 2021:
+  Binance USD (BUSD): Market Cap to Volume Ratio = 38.99
+  Dogecoin (DOGE): Market Cap to Volume Ratio = 37.71
+April 2021:
+  Dogecoin (DOGE): Market Cap to Volume Ratio = 29.63
+  Binance USD (BUSD): Market Cap to Volume Ratio = 26.49
+March 2021:
+  Binance USD (BUSD): Market Cap to Volume Ratio = 15.59
+  Cardano (ADA): Market Cap to Volume Ratio = 11.40
+February 2021:
+  Binance USD (BUSD): Market Cap to Volume Ratio = 17.89
+  Cardano (ADA): Market Cap to Volume Ratio = 13.54
+January 2021:
+  Binance USD (BUSD): Market Cap to Volume Ratio = 11.29
+  Polkadot (DOT): Market Cap to Volume Ratio = 8.23
+December 2020:
+  XRP (XRP): Market Cap to Volume Ratio = 9.62
+  Binance USD (BUSD): Market Cap to Volume Ratio = 3.85
+November 2020:
+  Litecoin (LTC): Market Cap to Volume Ratio = 14.68
+  XRP (XRP): Market Cap to Volume Ratio = 6.63
+October 2020:
+  XRP (XRP): Market Cap to Volume Ratio = 1.56
+  Ethereum (ETH): Market Cap to Volume Ratio = 1.29
+September 2020:
+  XRP (XRP): Market Cap to Volume Ratio = 1.93
+  Ethereum (ETH): Market Cap to Volume Ratio = 1.91
+August 2020:
+  Litecoin (LTC): Market Cap to Volume Ratio = 10.75
+  TRON (TRX): Market Cap to Volume Ratio = 3.70
+July 2020:
+  Litecoin (LTC): Market Cap to Volume Ratio = 5.78
+  XRP (XRP): Market Cap to Volume Ratio = 1.44
+June 2020:
+  Litecoin (LTC): Market Cap to Volume Ratio = 8.10
+  XRP (XRP): Market Cap to Volume Ratio = 1.39
+May 2020:
+  Litecoin (LTC): Market Cap to Volume Ratio = 14.58
+  XRP (XRP): Market Cap to Volume Ratio = 2.12
+April 2020:
+  Litecoin (LTC): Market Cap to Volume Ratio = 14.44
+  TRON (TRX): Market Cap to Volume Ratio = 6.11

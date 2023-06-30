@@ -1,5 +1,6 @@
 from ast import Dict
 import csv
+import time
 import requests
 import json
 import os
@@ -142,12 +143,12 @@ class CoinBaseRepo:
 
 
 
-# start = datetime(2021, 8, 1)
-# end = datetime(2021, 11, 1)
-# while start < datetime.now():
-#     CoinBaseRepo.fetch_daily_data('BTC/EUR', start, end)
-#     start = start + timedelta(days=30)
-#     end = end + timedelta(days=30)
-#     #sleep 1 second
-#     time.sleep(1)
-#     print(start)
+start = datetime(2023, 4, 1)
+end = datetime(2023, 6, 29)
+while start < datetime.now():
+    CoinBaseRepo.fetch_daily_data('ETH/EUR', start, end)
+    start = start + timedelta(days=30)
+    end = end + timedelta(days=30)
+    #sleep 1 second
+    time.sleep(1)
+    print(start)

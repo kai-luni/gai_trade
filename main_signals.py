@@ -1,7 +1,6 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 import sys
 import os
-import time
 from algos.RollingAverages import RollingAverages
 
 #add the parent directory to the path
@@ -10,26 +9,13 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from api.CoinBaseRepo import CoinBaseRepo
 from api.FearGreedRepo import FearGreedRepo 
 
-from algos.PearsonCorrelationCoefficient import PCC
-
 
 
 
 #if main
 if __name__ == "__main__":
-    # start = datetime(2019, 1, 1)
-    # end = datetime(2019, 2, 1)
-    # while start < datetime.now():
-    #     CoinBaseRepo.fetch_daily_data('ETH/EUR', start, end)
-    #     start = start + timedelta(days=30)
-    #     end = end + timedelta(days=30)
-    #     #sleep 1 second
-    #     time.sleep(1)
-    #     print(start)
-
-
-    start_filter = datetime(2018, 2, 1)
-    end_filter = datetime(2023, 4, 6)
+    start_filter = datetime(2023, 4, 1)
+    end_filter = datetime(2023, 6, 29)
     dictlist_btc = CoinBaseRepo.read_csv_to_dict('api/BTC_EUR.csv')
     exchange_items_btc = CoinBaseRepo.get_exchange_rate_items(start_filter, end_filter, dictlist_btc)
     dictlist_eth = CoinBaseRepo.read_csv_to_dict('api/ETH_EUR.csv')
@@ -48,21 +34,14 @@ if __name__ == "__main__":
     signals_btc = RollingAverages.get_buy_sell_signals(prices_btc, fear_greed_index, 4, 90, 46, 55)
     signals_eth = RollingAverages.get_buy_sell_signals(prices_eth, fear_greed_index, 4, 90, 46, 55)
 
-    # final_btc = RollingAverages.simulate_trading(prices_btc, signals_btc)
-    # final_eth = RollingAverages.simulate_trading(prices_eth, signals_eth)
-    # print(f"btc one: {final_btc}")
-    # print(f"eth one: {final_eth}")
     signals_btc = RollingAverages.get_buy_sell_signals(prices_btc, fear_greed_index, 6, 100, 46, 55)
     signals_eth = RollingAverages.get_buy_sell_signals(prices_eth, fear_greed_index, 6, 100, 46, 55)
     final_btc = RollingAverages.simulate_trading(prices_btc, signals_btc)
     final_eth = RollingAverages.simulate_trading(prices_eth, signals_eth)
     print(f"btc one: {final_btc}")
     print(f"eth one: {final_eth}")
-    #raise SystemExit(0)
+    raise SystemExit(0)
 
-    # print("Buy and sell signals:")
-    # for signal, index in signals_btc:
-    #     print(f"{signal.capitalize()} at index {exchange_items_btc[index].date}")
 
     # Define the range of values for each parameter
     short_window_values = range(3, 15)
