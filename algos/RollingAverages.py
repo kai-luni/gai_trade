@@ -90,3 +90,20 @@ class RollingAverages:
             final_bitcoin = bitcoin
 
         return final_bitcoin
+    
+    @staticmethod
+    def single_moving_average(data: List[float]) -> float:
+        """
+        Calculate the moving average over the entire data set and return the last moving average value.
+
+        Parameters:
+        data (List[float]): List of floating point numbers representing the data set.
+
+        Returns:
+        float: The last moving average value.
+        """
+        window = len(data)
+        moving_avgs = pd.Series(data).rolling(window=window).mean().tolist()
+        
+        # Return the last moving average value
+        return moving_avgs[-1]
