@@ -1,5 +1,6 @@
 import csv
 import json
+import os
 import requests
 from datetime import datetime
 
@@ -11,7 +12,7 @@ class FearGreedRepo:
     # Assuming you have an appropriate constructor and/or attributes for this class
     pass
 
-    def get_data(limit=10, file_path="fear_greed_data.csv") -> 'list[dict]':
+    def get_data(limit=10, file_path="api/fear_greed_data.csv") -> 'list[dict]':
         """Get daily fear greed index from alternative.me and append to a CSV file.
 
         Args:
@@ -32,13 +33,13 @@ class FearGreedRepo:
             try:
                 with open(file_path, "r") as csvfile:
                     reader = csv.reader(csvfile)
+                    # Skip the header row
+                    _ = next(reader, None)
                     for row in reader:
                         if len(row) > 0:
                             existing_data[int(row[0])] = row
             except FileNotFoundError:
                 pass
-
-            # Append new data to the existing_data dictionary
             for candle in candles:
                 timestamp = int(candle["timestamp"])
                 if timestamp not in existing_data:
@@ -109,3 +110,5 @@ class FearGreedRepo:
 
         return data
 
+if __name__ == "__main__":
+    FearGreedRepo.get_data(1000)

@@ -57,4 +57,4 @@ class AlternativeFearGreedApi:
         return None
 
 if __name__ == "__main__":
-    AlternativeFearGreedApi.getData()
+    AlternativeFearGreedApi.get_data(365)
