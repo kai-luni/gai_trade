@@ -4,7 +4,7 @@ import os
 from numpy import append
 
 from dto.ObjectsGai import ExchangeRateItem
-from api.CoinBaseApi import CoinBaseApi
+from old.CoinBaseApi import CoinBaseApi
 
 
 class ExchangeRateData:

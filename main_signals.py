@@ -40,7 +40,7 @@ if __name__ == "__main__":
     final_eth = RollingAverages.simulate_trading(prices_eth, signals_eth)
     print(f"btc one: {final_btc}")
     print(f"eth one: {final_eth}")
-    raise SystemExit(0)
+    # raise SystemExit(0)
 
 
     # Define the range of values for each parameter
