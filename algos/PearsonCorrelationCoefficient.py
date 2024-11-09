@@ -44,35 +44,35 @@ class PCC:
 
         return correlation
     
-def find_good_correlations(exchange_items: List[ExchangeRateItem], greed_items: List[Dict[str, int]]):
-    """
-    This function calculates the Pearson correlation coefficient between exchange rates and greed indexes
-    for specified ranges of data and writes the results to a text file if the PCC value is greater than 0.4.
+    def find_good_correlations(exchange_items: List[ExchangeRateItem], greed_items: List[Dict[str, int]]):
+        """
+        This function calculates the Pearson correlation coefficient between exchange rates and greed indexes
+        for specified ranges of data and writes the results to a text file if the PCC value is greater than 0.4.
 
-    Args:
-        exchange_items (List[ExchangeRateItem]): A list of exchange rate items containing dates and opening prices.
-        greed_items (List[Dict[str, int]]): A list of dictionaries containing greed indexes.
+        Args:
+            exchange_items (List[ExchangeRateItem]): A list of exchange rate items containing dates and opening prices.
+            greed_items (List[Dict[str, int]]): A list of dictionaries containing greed indexes.
 
-    Returns:
-        None
-    """
+        Returns:
+            None
+        """
 
-    # Extract dates, opening prices, and greed indexes from the input lists
-    dates = [item.date for item in exchange_items]
-    opens = [item.open for item in exchange_items]
-    greed_indexes = [item["index"] for item in greed_items]
+        # Extract dates, opening prices, and greed indexes from the input lists
+        dates = [item.date for item in exchange_items]
+        opens = [item.open for item in exchange_items]
+        greed_indexes = [item["index"] for item in greed_items]
 
-    # Open a file to write the results
-    with open('results.txt', 'a') as file:
-        # Loop through the specified ranges
-        for i in range(100):
-            for j in range(30):
-                # Calculate the PCC for the given range
-                pcc = PCC.calculate_pcc(dates, opens, greed_indexes, i, i+j)
+        # Open a file to write the results
+        with open('results.txt', 'a') as file:
+            # Loop through the specified ranges
+            for i in range(100):
+                for j in range(30):
+                    # Calculate the PCC for the given range
+                    pcc = PCC.calculate_pcc(dates, opens, greed_indexes, i, i+j)
 
-                # Write the result to the file if the PCC value is greater than 0.4
-                if pcc > 0.4:
-                    file.write(f"Pearson correlation coefficient from {i} to {i+j} is {pcc}\n")     
+                    # Write the result to the file if the PCC value is greater than 0.4
+                    if pcc > 0.4:
+                        file.write(f"Pearson correlation coefficient from {i} to {i+j} is {pcc}\n")     
     
     @staticmethod
     def get_stock_changes_in_percent(dates: List[datetime], stock_prices: List[float], fear_and_greed: List[int]):
