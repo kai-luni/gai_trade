@@ -11,7 +11,7 @@ from dto.ExchangeRateItem import ExchangeRateItem
 
 class CoinBaseRepo:
     @staticmethod
-    def fetch_daily_data(symbol, start, end, folder="api"):
+    def fetch_daily_data(symbol, start, end, folder="repos"):
         """
         Fetch daily cryptocurrency data from CryptoCompare API, combine with existing data,
         and save the complete dataset to a CSV file.
@@ -156,13 +156,13 @@ class CoinBaseRepo:
 
 
 
-
-start = datetime(2024, 3, 1)
-end = datetime(2024, 4, 1)
-while start < datetime.now():
-    CoinBaseRepo.fetch_daily_data('BTC', start, end)
-    start = start + timedelta(days=30)
-    end = end + timedelta(days=30)
-    #sleep 1 second
-    time.sleep(1)
-    print(start)
+if __name__ == "__main__":
+    start = datetime(2024, 3, 1)
+    end = datetime(2024, 4, 1)
+    while start < datetime.now():
+        CoinBaseRepo.fetch_daily_data('BTC', start, end)
+        start = start + timedelta(days=30)
+        end = end + timedelta(days=30)
+        #sleep 1 second
+        time.sleep(1)
+        print(start)

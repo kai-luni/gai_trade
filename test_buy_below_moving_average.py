@@ -1,8 +1,7 @@
 from typing import List
 from datetime import datetime
 from algos.RollingAverages import RollingAverages
-
-from api.CoinBaseRepo import CoinBaseRepo
+from repos import CoinBaseRepo
 
 class ExchangeRateItem:
     def __init__(self, unix : float, date : datetime, low: float, high : float, open : float, close : float, volume: float):
@@ -56,7 +55,7 @@ def investment_strategy(exchange_rates: List[ExchangeRateItem], window_length: i
 # For demonstration purposes, let's assume a sample list of ExchangeRateItems
 start_filter = datetime(2016, 4, 1)
 end_filter = datetime(2023, 8, 24)
-dictlist_btc = CoinBaseRepo.read_csv_to_dict('api/BTC_EUR.csv')
+dictlist_btc = CoinBaseRepo.read_csv_to_dict('repos/BTC_EUR.csv')
 sample_exchange_rates = CoinBaseRepo.get_exchange_rate_items(start_filter, end_filter, dictlist_btc)
 
 for window_length in [1, 2, 5, 10, 20, 40, 80]:

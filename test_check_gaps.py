@@ -1,7 +1,7 @@
 from datetime import datetime
 
-from db.exchange_rate_data_sql import ExchangeRateData
-from ObjectsGai import ExchangeRateItem
+from old import ExchangeRateData
+
 
 if __name__ == "__main__":
     coin = "BTC"

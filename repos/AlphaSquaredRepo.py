@@ -69,7 +69,9 @@ class AlphaSquaredRepo:
                     min_difference = difference
 
             if closest_entry:
-                result.append(closest_entry)
+                # Create a new RiskEntry object with the requested date
+                updated_entry = RiskEntry(date=current_date.strftime('%Y-%m-%d'), risk=closest_entry.risk)
+                result.append(updated_entry)
             else:
                 raise Exception(f"No risk entry found within 7 days for date: {current_date}")
 
