@@ -31,51 +31,77 @@ class TestAlphaSquaredStrategy:
 
             # Process or analyze the data as needed
             print("Start Simulation...")
-            TestAlphaSquaredStrategy.simulate_trading(alphasq_data, sample_exchange_rates, start_filter, end_filter)
+            investment_rules = {
+                (0, 10): 0.50,
+                (10, 20): 0.40,
+                (20, 30): 0.35,
+                (30, 40): 0.30,
+                (40, 50): 0.20,
+                (50, 60): 0.10,
+                (60, 70): 0.05
+            }
+            TestAlphaSquaredStrategy.simulate_trading(alphasq_data, sample_exchange_rates, start_filter, end_filter, investment_rules)
             TestAlphaSquaredStrategy.simple_monthly_investment(sample_exchange_rates, start_filter, end_filter)
 
         except Exception as e:
             print(f"Error: {e}")
 
-    def simulate_trading(alphasq_data: 'list[RiskEntry]', exchange_rate_data: 'list[ExchangeRateItem]', start_date: datetime, end_date: datetime):
+    def simulate_trading(
+        alphasq_data: 'list[RiskEntry]',
+        exchange_rate_data: 'list[ExchangeRateItem]',
+        start_date: datetime,
+        end_date: datetime,
+        investment_rules: dict
+    ):
         """
         Simulates trading based on the provided AlphaSquared risk data and BTC/EUR exchange rates.
-        
+
         Parameters:
         - alphasq_data: list of RiskEntry
         - exchange_rate_data: list of ExchangeRateItem
         - start_date: datetime
         - end_date: datetime
-        
+        - investment_rules: dict
+            A dictionary mapping risk thresholds to investment percentages.
+            Example:
+                {
+                    (0, 10): 0.50,
+                    (10, 20): 0.40,
+                    (20, 30): 0.35,
+                    (30, 40): 0.30,
+                    (40, 50): 0.20,
+                    (50, 60): 0.10,
+                    (60, 70): 0.05
+                }
         Returns:
         - A list of daily portfolio values.
         """
-        
+
         # Initialize depot and holdings
         depot = 0.0  # in Euros
         holdings = 0.0  # in BTC
-        
+
         # Prepare data structures for quick lookup
         # Create a dict mapping dates to risk values
         risk_dict = {entry.date: entry.risk for entry in alphasq_data}
         # Create a dict mapping dates to exchange rates (close price)
         exchange_rate_dict = {item.date.date(): item.close for item in exchange_rate_data}
-        
+
         # To handle missing data, we can create sorted lists of dates
         risk_dates = sorted(risk_dict.keys())
         exchange_rate_dates = sorted(exchange_rate_dict.keys())
-        
+
         # For recording portfolio value over time
         portfolio_values = []
-        
+
         # Start simulation
         current_date = start_date.date()
         end_date = end_date.date()
-        
+
         # We can store the last known risk and exchange rate
         last_risk = None
         last_exchange_rate = None
-        
+
         # Loop over each day
         while current_date <= end_date:
             # Update last known risk
@@ -88,7 +114,7 @@ class TestAlphaSquaredStrategy:
                     last_risk = risk_dict[prior_dates[-1]]
                 else:
                     last_risk = None  # no prior risk data
-            
+
             # Update last known exchange rate
             if current_date in exchange_rate_dict:
                 last_exchange_rate = exchange_rate_dict[current_date]
@@ -99,7 +125,7 @@ class TestAlphaSquaredStrategy:
                     last_exchange_rate = exchange_rate_dict[prior_dates[-1]]
                 else:
                     last_exchange_rate = None  # no prior exchange rate data
-            
+
             # If it's the first of the month, add 200 Euro to depot
             if current_date.day == 1:
                 depot += 200.0
@@ -108,20 +134,15 @@ class TestAlphaSquaredStrategy:
                     # Determine the percentage to invest based on risk
                     invest_percent = 0.0
                     risk = last_risk
-                    if 60 <= risk < 70:
-                        invest_percent = 0.05
-                    elif 50 <= risk < 60:
-                        invest_percent = 0.10
-                    elif 40 <= risk < 50:
-                        invest_percent = 0.20
-                    elif 30 <= risk < 40:
-                        invest_percent = 0.30
-                    elif 20 <= risk < 30:
-                        invest_percent = 0.35
-                    elif 10 <= risk < 20:
-                        invest_percent = 0.40
-                    elif 0 <= risk < 10:
-                        invest_percent = 0.50
+
+                    # Iterate over the investment rules to find the matching risk range
+                    # Sort the risk ranges by lower_bound to ensure correct order
+                    sorted_rules = sorted(investment_rules.items(), key=lambda x: x[0][0])
+                    for (lower_bound, upper_bound), percent in sorted_rules:
+                        if lower_bound <= risk < upper_bound:
+                            invest_percent = percent
+                            break
+
                     # Calculate the amount to invest
                     amount_to_invest = depot * invest_percent
                     if amount_to_invest > 0:
@@ -129,30 +150,28 @@ class TestAlphaSquaredStrategy:
                         btc_bought = amount_to_invest / last_exchange_rate
                         holdings += btc_bought
                         depot -= amount_to_invest
-                        # print(f">>>{current_date}: Bought {btc_bought:.6f} BTC for {amount_to_invest:.2f} EUR at risk {risk}%")
-                        # TestAlphaSquaredStrategy.display_portfolio(portfolio_values)
-            
+                        # Optionally print transaction details
+                        # print(f"{current_date}: Bought {btc_bought:.6f} BTC for {amount_to_invest:.2f} EUR at risk {risk}%")
+
             # If it's Monday, check the risk and possibly sell holdings
             if current_date.weekday() == 0:  # Monday is 0
                 if last_risk is not None and last_exchange_rate is not None:
                     risk = last_risk
+                    # Determine the sell percentage based on risk
+                    sell_percent = 0.0
                     if risk > 90:
-                        # Sell 70% of holdings
-                        btc_to_sell = holdings * 0.70
-                        amount_received = btc_to_sell * last_exchange_rate
-                        holdings -= btc_to_sell
-                        depot += amount_received
-                        print(f">>>{current_date}: Sold {btc_to_sell:.6f} BTC for {amount_received:.2f} EUR at risk {risk}%")
-                        TestAlphaSquaredStrategy.display_portfolio(portfolio_values)
+                        sell_percent = 0.70
                     elif risk > 80:
-                        # Sell 30% of holdings
-                        btc_to_sell = holdings * 0.30
+                        sell_percent = 0.30
+
+                    if sell_percent > 0 and holdings > 0:
+                        btc_to_sell = holdings * sell_percent
                         amount_received = btc_to_sell * last_exchange_rate
                         holdings -= btc_to_sell
                         depot += amount_received
-                        print(f">>>{current_date}: Sold {btc_to_sell:.6f} BTC for {amount_received:.2f} EUR at risk {risk}%")
-                        TestAlphaSquaredStrategy.display_portfolio(portfolio_values)
-            
+                        # Optionally print transaction details
+                        # print(f"{current_date}: Sold {btc_to_sell:.6f} BTC for {amount_received:.2f} EUR at risk {risk}%")
+
             # Calculate portfolio value
             if last_exchange_rate is not None:
                 holdings_value = holdings * last_exchange_rate
@@ -167,12 +186,13 @@ class TestAlphaSquaredStrategy:
                 'holdings_value': holdings_value,
                 'total_value': total_portfolio_value,
             })
-            
+
             # Move to next day
             current_date += timedelta(days=1)
-        
+
         print(">>>")
         TestAlphaSquaredStrategy.display_portfolio(portfolio_values)
+
         return portfolio_values
     
     def simple_monthly_investment(exchange_rate_data: 'list[ExchangeRateItem]', start_date: datetime, end_date: datetime):
