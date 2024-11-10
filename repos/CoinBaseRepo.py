@@ -87,7 +87,12 @@ class CoinBaseRepo:
 
 
     @staticmethod
-    def get_exchange_rate_items(start_date: datetime, end_date: datetime, exchange_items: 'list[Dict]', throwExceptionMissingDay: bool = True) -> 'list[ExchangeRateItem]':
+    def get_exchange_rate_items(
+        start_date: datetime,
+        end_date: datetime,
+        exchange_items: 'list[Dict]',
+        throwExceptionMissingDay: bool = True
+    ) -> 'list[ExchangeRateItem]':
         """
         Filter exchange items by date range and convert them to ExchangeRateItem objects.
         Ensure that there is exactly one item per day, and raise an exception if an item is missing.
@@ -101,32 +106,32 @@ class CoinBaseRepo:
         list: A list of ExchangeRateItem objects filtered by the specified date range.
         """
 
+        # First, parse all exchange items and create a dictionary mapping dates to ExchangeRateItem objects
+        exchange_rate_dict = {}
+        for item in exchange_items:
+            item_date = datetime.strptime(item['date'], '%Y-%m-%d %H:%M:%S').date()
+            exchange_rate_item = ExchangeRateItem(
+                unix=int(item['unix']),
+                date=datetime.strptime(item['date'], '%Y-%m-%d %H:%M:%S'),
+                low=float(item['low']),
+                high=float(item['high']),
+                open=float(item['open']),
+                close=float(item['close']),
+                volume=float(item['volume'])
+            )
+            exchange_rate_dict[item_date] = exchange_rate_item
+
+        # Now, iterate over the date range and collect the ExchangeRateItem objects
         result = []
         days_difference = (end_date - start_date).days
 
         for i in range(days_difference + 1):
-            current_date = start_date + timedelta(days=i)
-            item_for_current_date = None
+            current_date = (start_date + timedelta(days=i)).date()
 
-            for item in exchange_items:
-                item_date = datetime.strptime(item['date'], '%Y-%m-%d %H:%M:%S')
-                if item_date.date() == current_date.date():
-                    item_for_current_date = item
-                    break
-
-            if item_for_current_date:
-                exchange_rate_item = ExchangeRateItem(
-                    unix=int(item_for_current_date['unix']),
-                    date=item_date,
-                    low=float(item_for_current_date['low']),
-                    high=float(item_for_current_date['high']),
-                    open=float(item_for_current_date['open']),
-                    close=float(item_for_current_date['close']),
-                    volume=float(item_for_current_date['volume'])
-                )
-                result.append(exchange_rate_item)
+            if current_date in exchange_rate_dict:
+                result.append(exchange_rate_dict[current_date])
             elif throwExceptionMissingDay:
-                raise Exception(f"Missing exchange rate data for date: {current_date.date()}")
+                raise Exception(f"Missing exchange rate data for date: {current_date}")
 
         return result
 
