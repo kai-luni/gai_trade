@@ -2,3 +2,4 @@
 __pycache__/
 /display/__pycache__/
 test_dbBTC_EUR_echange_db.sqlite
+.env
