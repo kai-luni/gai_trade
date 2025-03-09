@@ -12,7 +12,7 @@ class FearGreedRepo:
     # Assuming you have an appropriate constructor and/or attributes for this class
     pass
 
-    def get_data(limit=10, file_path="api/fear_greed_data.csv") -> 'list[dict]':
+    def get_data(limit=10, file_path="repos/fear_greed_data.csv") -> 'list[dict]':
         """Get daily fear greed index from alternative.me and append to a CSV file.
 
         Args:
@@ -65,25 +65,27 @@ class FearGreedRepo:
 
 
 
-    def read_csv_file(start : datetime, end : datetime, file_path="fear_greed_data.csv", check_data=False):
-        """Reads the CSV file and returns the data as a list of dictionaries.
+    def read_csv_file(start: datetime, end: datetime, file_path="repos/fear_greed_data.csv", check_data=False):
+        """Reads the CSV file and returns the data as a list of FearGreedItem objects.
+        
         Args:
             file_path (str): The path of the CSV file to read data from.
-            start (str): The start date in the format 'YYYY-MM-DD' to filter the data.
-            end (str): The end date in the format 'YYYY-MM-DD' to filter the data.
+            start (datetime): The start date to filter the data.
+            end (datetime): The end date to filter the data.
+            check_data (bool): Whether to check for missing dates.
 
         Returns:
-            list: A list of dictionaries containing the data.
+            list: A list of FearGreedItem objects.
 
         Raises:
             Exception: If there is a missing entry in the given date range.
         """
-
         data = []
         unique_dates = set()
 
         with open(file_path, "r") as csvfile:
             reader = csv.reader(csvfile)
+            next(reader)  # Skip header row if present
 
             for row in reader:
                 if len(row) > 0:
@@ -93,21 +95,23 @@ class FearGreedRepo:
                     if (start is None or date >= start.date()) and (end is None or date <= end.date()):
                         if date not in unique_dates:
                             unique_dates.add(date)
-                            entry = {
-                                "timestamp": timestamp,
-                                "index": int(row[1]),
-                                "index_text": row[2],
-                                "human_readable_date": datetime.strptime(row[3], "%Y-%m-%d %H:%M:%S")
-                            }
-                            data.append(entry)
+                            item = FearGreedItem(
+                                unix=timestamp,
+                                date=datetime.strptime(row[3], "%Y-%m-%d %H:%M:%S"),
+                                index=int(row[1]),
+                                index_text=row[2]
+                            )
+                            data.append(item)
+        
         if not check_data:
             return data
+
         # Check for missing dates
         date_range = set(pd.date_range(start=start or min(unique_dates), end=end or max(unique_dates), freq='D').date)
         missing_dates = date_range - unique_dates
         if missing_dates:
             raise Exception(f"Missing data for the following dates: {', '.join(str(d) for d in missing_dates)}")
-
+        
         return data
 
 if __name__ == "__main__":

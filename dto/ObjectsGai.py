@@ -77,7 +77,11 @@ class TradeSellParams:
 
 
 class FearGreedItem:
-    unix = 0
-    date = datetime(1, 1, 1, 1, 1, 1, 1)
-    index = -1
-    index_text = "Not Initialized"
+    def __init__(self, unix, date, index, index_text):
+        self.unix = unix
+        self.date = date
+        self.index = index
+        self.index_text = index_text
+    
+    def __repr__(self):
+        return f"FearGreedItem(unix={self.unix}, date={self.date}, index={self.index}, index_text='{self.index_text}')"
