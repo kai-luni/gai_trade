@@ -22,7 +22,7 @@ if __name__ == "__main__":
     exchange_items_eth = CoinBaseRepo.get_exchange_rate_items(start_filter, end_filter, dictlist_eth)
 
     #FearGreedRepo.get_data(10000, 'api/fear_greed_data.csv')
-    greed_items = FearGreedRepo.read_csv_file(start_filter, end_filter, 'api/fear_greed_data.csv')
+    greed_items = FearGreedRepo.read_csv_file(start_filter, end_filter)
     print(f"Number of fear greed items: {len(greed_items)}")
 
     # Replace with your actual data

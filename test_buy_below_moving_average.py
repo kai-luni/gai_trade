@@ -52,7 +52,6 @@ def investment_strategy(exchange_rates: List[ExchangeRateItem], window_length: i
 
     return total_bitcoin_purchased, balance_euro, total_euro_spent
 
-# For demonstration purposes, let's assume a sample list of ExchangeRateItems
 start_filter = datetime(2016, 4, 1)
 end_filter = datetime(2023, 8, 24)
 dictlist_btc = CoinBaseRepo.read_csv_to_dict('repos/BTC_EUR.csv')
