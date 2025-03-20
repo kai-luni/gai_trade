@@ -122,7 +122,7 @@ def generate_trading_strategy(money_if_never_sell, feedback: str = "", attempt_n
     base_prompt = (
         "You are a professional algorithmic trader creating a Python function for Bitcoin trading. "
         "I need ONLY the complete Python code with NO explanations outside the code comments.\n\n"
-        "Write a SINGLE Python function named 'daily_decision' using this EXACT signature:\n"
+        "Write a Python function named 'daily_decision' using this EXACT signature:\n"
         "def daily_decision(exchange_rates: list[ExchangeRateItem], fear_greed_data: list[FearGreedItem]) -> int:\n\n"
         "=== INPUT SPECIFICATIONS ===\n"
         "1. ExchangeRateItem PREDEFINED CLASS (DO NOT REDECLARE) with fields:\n"
@@ -139,20 +139,23 @@ def generate_trading_strategy(money_if_never_sell, feedback: str = "", attempt_n
         "3. Both input lists are chronological - exchange_rates[-1] and fear_greed_data[-1] represent today\n"
         "=== OUTPUT REQUIREMENTS ===\n"
         "Return ONLY 0/1/2 integer. NO OTHER OUTPUT:\n"
-        "- 0: Hold | 1: Buy today | 2: Sell today\n\n"
+        "- 0: Hold | 1: Buy today | 2: Sell today\n"
+        "NOTE: The algorithm automatically receives 100 EUR on the 1st of each month. When returning \"1\" (Buy), the algorithm should use available cash to purchase BTC. This is critical for performance comparison against a simple monthly investment strategy.\n\n"
         "=== STRATEGY RULES ===\n"
         "1. START with '# Strategy: [Strategy Type] - ' comment explaining your approach in detail, like hardcorded values etc, write it in one line\n"
-        "2. Required technical calculations (you must calculate these, but you have complete freedom in how you use them):\n"
+        "2. IMPORTANT: The algorithm receives 100 EUR to invest on the 1st of each month. These funds are added to the available cash balance regardless of the daily_decision output. When returning \"1\" (Buy), the algorithm should use available cash to purchase BTC.\n"
+        "3. Required technical calculations (you must calculate these, but you have complete freedom in how you use them):\n"
         " a) Calculate short-term and long-term moving averages of closing prices (e.g., 3-day, 30-day, or other periods)\n"
         " b) Calculate volatility metrics (e.g., (high - low)/close for recent days)\n"
         " c) Analyze volume patterns (e.g., compare recent volume to longer-term averages)\n"
         " d) Calculate momentum indicators (e.g., RSI using a 14-day period)\n"
         " e) Fear and Greed data is optional, if you dont need it, ignore it.\n"
-        "3. BE CREATIVE! You can combine these metrics in novel ways or create additional indicators from the price data.\n"
-        "4. Edge cases:\n"
+        "4. BE CREATIVE! You can combine these metrics in novel ways or create additional indicators from the price data.\n"
+        "5. Edge cases:\n"
         " a) Raise ValueError if len(exchange_rates) < 30\n"
         " b) Default to 0 if no clear signal\n"
-        " c) Handle missing fear_greed_data gracefully (use price-based signals only)\n\n"
+        " c) Handle missing fear_greed_data gracefully (use price-based signals only)\n"
+        " d) If the current date is the 1st of a month, consider the newly available 100 EUR in your buy decision\n\n"
         "=== CODING CONSTRAINTS ===\n"
         "1. FUNCTION NAME MUST BE 'daily_decision' EXACTLY\n"
         "2. DO NOT IMPORT MODULES or REDEFINE CLASSES\n"
@@ -535,8 +538,8 @@ def simulate_trading(decision_func: Callable[[list[ExchangeRateItem], list[FearG
         - list: Errors encountered during simulation
     """
     portfolio = {
-        'cash': 1000.00,  # Initial capital in EUR
-        'btc': 0.0,       # BTC holdings
+        'cash': 0.00,  # Initial capital in EUR
+        'btc': 0.1,       # BTC holdings
         'history': []     # Daily portfolio value in EUR
     }
     
@@ -560,7 +563,7 @@ def simulate_trading(decision_func: Callable[[list[ExchangeRateItem], list[FearG
             
             # Add 100 euros on the first day of each month
             if today.date.day == 1:
-                portfolio['cash'] += 100.00
+                portfolio['btc'] += (100.00 / today.close)
                 if debug:
                     console.print(f"[cyan]First day of month ({today.date}): Added €100.00 to portfolio[/cyan]")
             
@@ -677,7 +680,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="AI Trading Strategy Generator")
     parser.add_argument("--attempts", type=int, default=1, 
                        help="Maximum number of generation attempts")
-    parser.add_argument("--threshold", type=float, default=20000,
+    parser.add_argument("--threshold", type=float, default=100000,
                        help="Target final portfolio value (in EUR)")
     parser.add_argument("--test", action="store_true",
                        help="Run validation tests only")
@@ -808,6 +811,7 @@ def main():
                 console.print("[green]Saved best strategy to 'best_strategy.py'[/green]")
 
             if best_value >= args.threshold:
+                console.print(f"[green]We made it :) Reached {best_value}[/green]")
                 break
 
         except Exception as e:

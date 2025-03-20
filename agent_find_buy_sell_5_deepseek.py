@@ -144,10 +144,11 @@ def generate_trading_strategy(money_if_never_sell, feedback: str = "", attempt_n
         "   Positive values indicate BTC flowing INTO exchanges (bearish - people are preparing to sell)\n"
         "   Negative values indicate BTC flowing OUT OF exchanges (bullish - people are withdrawing to hold)\n"
         "4. All input lists are chronological - exchange_rates[-1], fear_greed_data[-1], and netflow_data[-1] represent today\n"
+        "5. The data is checked to be complete, all fields have values. The data is going at least 30 days back, mostly more.\n"
         "=== OUTPUT REQUIREMENTS ===\n"
         "Return ONLY 0/1/2 integer. NO OTHER OUTPUT:\n"
         "- 0: Hold | 1: Buy today | 2: Sell today\n"
-        "NOTE: The algorithm automatically receives 100 EUR on the 1st of each month. When returning \"1\" (Buy), the algorithm should use available cash to purchase BTC. This is critical for performance comparison against a simple monthly investment strategy.\n\n"
+        "NOTE: The algorithm automatically adds 100 EUR in BTC on account. \n\n"
         "=== STRATEGY RULES ===\n"
         "1. START with '# Strategy: [Strategy Type] - ' comment explaining your approach in detail (including hardcoded values etc)\n"
         "   - This comment MUST be on its own line ABOVE the function definition\n"
@@ -155,19 +156,9 @@ def generate_trading_strategy(money_if_never_sell, feedback: str = "", attempt_n
         "   - The function definition must start on a new line after the strategy comment\n"
         "2. IMPORTANT: The algorithm receives 100 EUR to invest on the 1st of each month. These funds are added to the available cash balance regardless of the daily_decision output. When returning \"1\" (Buy), the algorithm should use available cash to purchase BTC.\n"
         "3. Required technical calculations (you must calculate these, but you have complete freedom in how you use them):\n"
-        " a) Calculate short-term and long-term moving averages of closing prices (e.g., 3-day, 30-day, or other periods)\n"
-        " b) Calculate volatility metrics (e.g., (high - low)/close for recent days)\n"
-        " c) Analyze volume patterns (e.g., compare recent volume to longer-term averages)\n"
-        " d) Calculate momentum indicators (e.g., RSI using a 14-day period)\n"
-        " e) Analyze netflow data to determine market sentiment - significant outflows from exchanges are bullish\n"
-        " f) Fear and Greed data is always complete, 1 entry per day\n"
-        " g) Exchange rate data is always at least 30 days back, often much longer, so algorithms can analyze longer timeframes\n"
+        " a) There are no requirements, be creative.\n"
         "4. BE CREATIVE! You can combine these metrics in novel ways or create additional indicators from the price data.\n"
-        "5. Edge cases:\n"
-        " a) Raise ValueError if len(exchange_rates) < 30\n"
-        " b) Default to 0 if no clear signal\n"
-        " c) Handle missing netflow_data gracefully (use other signals if netflow data is incomplete)\n"
-        " d) If the current date is the 1st of a month, consider the newly available 100 EUR in your buy decision\n\n"
+        "5. You can also use sub functions to make more complex calculations\n"
         "=== CODING CONSTRAINTS ===\n"
         "1. FUNCTION NAME MUST BE 'daily_decision' EXACTLY\n"
         "2. DO NOT IMPORT MODULES or REDEFINE CLASSES\n"
@@ -221,31 +212,19 @@ def generate_trading_strategy(money_if_never_sell, feedback: str = "", attempt_n
     else:
         # Regular strategy generation logic (exploration or refinement)
         if mode == "exploring":
-            # For exploration attempts, suggest a specific type of strategy to try
-            strategy_suggestions = [
-                "Mean Reversion - Buy when price deviates significantly from its average and sell when it returns",
-                "Momentum - Buy when price movement accelerates in one direction and sell when it slows",
-                "Breakout - Buy when price moves above a resistance level and sell when it breaks below support",
-                "Volatility-based - Buy or sell based on changes in market volatility patterns",
-                "Volume Pattern - Make decisions primarily based on unusual volume activity",
-                "Multiple Timeframe Analysis - Compare indicators across different time periods for confirmation",
-                "Fibonacci Retracement - Use key Fibonacci levels for decision points",
-                "Divergence Strategy - Look for divergence between price and technical indicators",
-                "Hybrid Approach - Combine multiple signals with a weighted scoring system",
-                "Market Regime Detection - Adapt strategy based on bullish, bearish, or sideways markets"
-            ]
-            strategy_index = (attempt_num // 4) % len(strategy_suggestions)
-            suggested_strategy = strategy_suggestions[strategy_index]
-            
             if attempt_num == 1:
                 strategy_message = "\nThis is your first attempt. Create a creative, innovative trading strategy."
             else:
                 strategy_message = (
                     f"\nThis is attempt #{attempt_num}. This is an EXPLORATION attempt."
                     f"\nYour task is to create a COMPLETELY DIFFERENT strategy than before."
-                    f"\nSpecifically, consider creating a '{suggested_strategy}' type of strategy."
-                    f"\nBe innovative - develop a unique decision algorithm that uses the required calculations in a novel way."
-                    f"\nYou have complete freedom to design the trading logic however you think would be most effective."
+                    f"\nBe innovative and experimental - develop a unique decision algorithm."
+                    f"\nYou have complete freedom in your approach:"
+                    f"\n1. You DO NOT need to use all available data fields - feel free to focus on specific indicators or data that you think are most relevant."
+                    f"\n2. Try fundamentally different approaches than what's been tried before."
+                    f"\n3. Consider unconventional indicators, unique combinations, or completely new approaches."
+                    f"\n4. You can ignore some data fields entirely if it leads to a clearer or more effective strategy."
+                    f"\n5. Think outside the box and create something novel - the goal is to try approaches that are very different from previous attempts."
                 )
         else:  # refinement mode
             strategy_message = (
@@ -303,8 +282,8 @@ def generate_trading_strategy(money_if_never_sell, feedback: str = "", attempt_n
                 # Add performance to the strategy description
                 strategy_with_performance = f"{strategy_desc} [Performance: €{performance:.2f}]"
                 # Limit to 400 characters
-                if len(strategy_with_performance) > 400:
-                    strategy_with_performance = strategy_with_performance[:397] + "..."
+                if len(strategy_with_performance) > 600:
+                    strategy_with_performance = strategy_with_performance[:597] + "..."
                 prior_approaches.append(strategy_with_performance)
         
         # Different feedback approach based on mode
@@ -365,21 +344,23 @@ def generate_trading_strategy(money_if_never_sell, feedback: str = "", attempt_n
                 approach_summary = "\n".join(prior_approaches)
                 messages.append({
                     "role": "user", 
-                    "content": f"I've tried these approaches previously:\n{approach_summary}\n\nPlease create a trading strategy that uses a COMPLETELY DIFFERENT approach than these."
+                    "content": (
+                        f"I've tried these approaches previously:\n{approach_summary}\n\n"
+                        f"Please create a trading strategy that uses a COMPLETELY DIFFERENT approach than these. "
+                        f"Feel free to ignore some data fields if they don't fit your approach. "
+                        f"You don't need to use all of: exchange rates, fear greed data, and netflow data. "
+                        f"It's better to have a focused strategy using only some data fields than to force-fit all data."
+                    )
                 })
                 
                 # Add most recent attempt but focus on what didn't work
                 performance_line = ""
                 for line in last_strategy["code"].split('\n'):
-                    if "Final:" in line and "Return:" in line:
+                    if "Final:" in line:
                         performance_line = line
                         break
                 
-                # Add context about starting capital
-                if abs(float(performance_line.split("Final: €")[1].split()[0]) - float(money_if_never_sell)) <= 1:
-                    performance_note = "\nNote: We start with €1000.00 and invest another 100 each first of the month, this strategy didn't execute any trades or had no net impact."
-                else:
-                    performance_note = "\nNote: We start with €1000.00 initial capital and invest another 100 each first of the month."
+                performance_note = f"\nPerformance: {performance_line}. DCA would have made: {money_if_never_sell} Euro."
                     
                 messages.append({
                     "role": "user", 
@@ -399,7 +380,7 @@ def generate_trading_strategy(money_if_never_sell, feedback: str = "", attempt_n
             temperature = 0.3  
         elif mode == "exploring":
             # Higher temperature for exploration (more creative)
-            temperature = min(0.8, 0.5 + (attempt_num * 0.05))  # Slightly higher for more creativity
+            temperature = min(0.95, 0.6 + (attempt_num * 0.1))  # Significantly higher for more creativity
         
         # Final user instruction
         if mode == "refinement" and attempt_num > 1:
@@ -410,7 +391,12 @@ def generate_trading_strategy(money_if_never_sell, feedback: str = "", attempt_n
         elif mode == "exploring":
             messages.append({
                 "role": "user", 
-                "content": f"Generate a creative trading strategy for attempt #{attempt_num}. Make sure it's fundamentally different from previous attempts."
+                "content": (
+                    f"Generate a creative trading strategy for attempt #{attempt_num}. "
+                    f"Make sure it's fundamentally different from previous attempts. "
+                    f"Remember, you don't need to use all available data - focus on what you think will work best. "
+                    f"Using fewer data sources but in a more focused way is perfectly valid."
+                )
             })
     
     # Debug output for prompt history (console only)
@@ -588,8 +574,8 @@ def simulate_trading(decision_func: Callable[[list[ExchangeRateItem], list[FearG
             # Add 100 euros on the first day of each month
             if today.date.day == 1:
                 portfolio['btc'] += (100.00 / today.close)
-                if debug:
-                    console.print(f"[cyan]First day of month ({today.date}): Added €100.00 to portfolio[/cyan]")
+                # if debug:
+                #     console.print(f"[cyan]First day of month ({today.date}): Added €100.00 to portfolio[/cyan]")
             
             # Prepare aligned fear & greed data for the current time window if available
             current_fear_greed = None
@@ -777,18 +763,25 @@ def main():
         console.rule(f"[bold]Attempt {attempt}/{args.attempts}")
         
         try:
-            # Determine mode based on attempt number, but override if there are errors to fix
-            if recent_errors and previous_code:
+            # Determine if this should be an exploration attempt (every 4th attempt or first attempt)
+            explore_mode = (attempt % 4 == 0 or attempt == 1)
+
+            # Check for errors, but only switch to error_fix if it's not an exploration attempt
+            if recent_errors and previous_code and not explore_mode:
                 mode = "error_fix"
                 mode_style = "bright_red"
                 console.print(f"[bold {mode_style}]Mode: ERROR FIXING[/bold {mode_style}]")
                 console.print("[bold red]Errors detected - switching to error fixing mode[/bold red]")
             else:
-                explore_mode = (attempt % 4 == 0 or attempt == 1)
+                # Either no errors or it's an exploration attempt that overrides error fixing
                 mode = "exploring" if explore_mode else "refinement"
                 mode_style = "bright_yellow" if explore_mode else "bright_magenta"
                 mode_display = "EXPLORATION" if explore_mode else "REFINEMENT"
-                console.print(f"[bold {mode_style}]Mode: {mode_display}[/bold {mode_style}]")
+                
+                if explore_mode and recent_errors:
+                    console.print(f"[bold {mode_style}]Mode: {mode_display} (overriding error fix)[/bold {mode_style}]")
+                else:
+                    console.print(f"[bold {mode_style}]Mode: {mode_display}[/bold {mode_style}]")
             
             # If there were errors in previous attempt, display them
             if recent_errors:
