@@ -19,64 +19,86 @@ from repos.NetflowRepo import NetflowRepo
 console = Console()
 
 
-# Strategy: OBV EMA Crossover with Trend Confirmation - Uses 3/10-day EMAs of On-Balance Volume (OBV) for momentum signals. Buys when 3-day EMA crosses above 10-day EMA and price above 20-day SMA. Sells on cross below with price below SMA. Forces buy on 1st of month unless cross below occurs or price below SMA threshold.
+import numpy as np
+
+# Strategy: Enhanced Adaptive Breakout with Volatility-Adjusted Thresholds - Tightens range contraction (50%), dynamic breakout levels (0.25-0.4% based on 3D volatility), optimized sentiment zones (28/72 with neutral buffer), improved EMA crossovers (8/21), and smart netflow normalization. Adds trend confirmation via RSI(3) >60/<40 and parent bar validation.
 
 def daily_decision(exchange_rates: list[ExchangeRateItem], fear_greed_data: list[FearGreedItem], netflow_data: list[NetflowDto]) -> int:
-    if len(exchange_rates) < 30:
-        raise ValueError(f"Insufficient data: {len(exchange_rates)} exchange rates provided, need at least 30")
-    
-    closing_prices = [er.close for er in exchange_rates]
-    volumes = [er.volume for er in exchange_rates]
-    current_date = exchange_rates[-1].date
-    
-    obv = [0.0]
-    for i in range(1, len(exchange_rates)):
-        prev_close = exchange_rates[i-1].close
-        current_close = exchange_rates[i].close
-        current_volume = exchange_rates[i].volume
-        
-        if current_close > prev_close:
-            obv.append(obv[-1] + current_volume)
-        elif current_close < prev_close:
-            obv.append(obv[-1] - current_volume)
-        else:
-            obv.append(obv[-1])
-    
-    def calculate_ema(data, window):
-        if not data:
-            return []
-        ema = [data[0]]
-        multiplier = 2 / (window + 1)
-        for val in data[1:]:
-            ema_val = (val - ema[-1]) * multiplier + ema[-1]
-            ema.append(ema_val)
-        return ema
-    
-    ema3 = calculate_ema(obv, 3)
-    ema10 = calculate_ema(obv, 10)
-    
-    if len(ema3) < 2 or len(ema10) < 2:
+    if len(exchange_rates) < 5:
         return 0
     
-    cross_above = ema3[-2] <= ema10[-2] and ema3[-1] > ema10[-1]
-    cross_below = ema3[-2] >= ema10[-2] and ema3[-1] < ema10[-1]
+    today = exchange_rates[-1]
+    yesterday = exchange_rates[-2]
+    day_before = exchange_rates[-3]
+    three_days_ago = exchange_rates[-4] if len(exchange_rates) >=4 else None
     
-    sma20 = sum(closing_prices[-20:]) / 20
-    current_price = closing_prices[-1]
-    price_above_sma = current_price > sma20
-    price_below_sma = current_price < sma20
+    # Enhanced inside bar detection with parent validation
+    parent_range = day_before.high - day_before.low
+    inside_range = yesterday.high - yesterday.low
+    range_contraction = parent_range > 0 and (inside_range/parent_range < 0.5) if parent_range else False
+    valid_parent = day_before.high > three_days_ago.high if three_days_ago else True
     
-    is_first_of_month = current_date.day == 1
+    # Dynamic volatility-adjusted breakout thresholds (0.25-0.4%)
+    recent_volatility = max([er.high - er.low for er in exchange_rates[-3:]]) / min([er.close for er in exchange_rates[-3:]]) if len(exchange_rates) >=3 else 0.003
+    breakout_multiplier = min(0.004, max(0.0025, 0.003 * (1 + recent_volatility*100)))
+    breakout_up = today.close > day_before.high and today.high > day_before.high * (1 + breakout_multiplier)
+    breakout_down = today.close < day_before.low and today.low < day_before.low * (1 - breakout_multiplier)
     
-    if is_first_of_month:
-        return 1 if not (cross_below and price_below_sma) else 0
+    # Optimized volume surge (2.2x 5D EMA volume)
+    vol_values = [er.volume for er in exchange_rates[-6:-1]]
+    ema_vol = vol_values[-1]
+    for i in range(len(vol_values)-2, -1, -1):
+        ema_vol = 0.6 * vol_values[i] + 0.4 * ema_vol
+    vol_surge = today.volume > 2.2 * ema_vol and today.volume > 1.6 * yesterday.volume
+    
+    # Smart sentiment analysis with neutral buffer
+    fg = fear_greed_data[-1]
+    netflow = netflow_data[-1].aggregated_exchanges or 0
+    avg_netflow = sum(nf.aggregated_exchanges or 0 for nf in netflow_data[-3:])/3
+    bullish_sentiment = fg.index < 28 and netflow < (-350 if avg_netflow < -200 else -250)
+    bearish_sentiment = fg.index > 72 and netflow > (450 if avg_netflow > 200 else 300)
+    
+    # Improved EMA crossover system (8/21 periods)
+    if len(exchange_rates) >=21:
+        closes = [er.close for er in exchange_rates]
+        ema8 = sum(closes[-8:])/8
+        ema21 = sum(closes[-21:])/21
+        for close in closes[-21:-8]:
+            ema21 = (ema21 * 20 + close)/21
+        for close in closes[-8:]:
+            ema8 = (ema8 * 7 + close)/8
+        ema_bullish = today.close > ema21 and ema8 > ema21 and (ema8 - ema21) > 0.005*ema21
+        ema_bearish = today.close < ema21 and ema8 < ema21 and (ema21 - ema8) > 0.005*ema21
     else:
-        if cross_above and price_above_sma:
-            return 1
-        elif cross_below and price_below_sma:
-            return 2
-    return 0
+        ema_bullish = ema_bearish = False
     
+    # Momentum confirmation with RSI(3)
+    rsi_period = 3
+    if len(exchange_rates) >= rsi_period+1:
+        gains = [max(0, exchange_rates[i].close - exchange_rates[i-1].close) for i in range(-rsi_period,0)]
+        losses = [max(0, exchange_rates[i-1].close - exchange_rates[i].close) for i in range(-rsi_period,0)]
+        avg_gain = sum(gains)/rsi_period
+        avg_loss = sum(losses)/rsi_period or 0.0001
+        rsi = 100 - (100/(1 + avg_gain/avg_loss))
+        rsi_bullish = rsi > 60
+        rsi_bearish = rsi < 40
+    else:
+        rsi_bullish = rsi_bearish = False
+    
+    # Core decision logic
+    if range_contraction and valid_parent:
+        if breakout_up and vol_surge and (bullish_sentiment or ema_bullish) and rsi_bullish:
+            return 1
+        if breakout_down and vol_surge and (bearish_sentiment or ema_bearish) and rsi_bearish:
+            return 2
+    
+    # Trend continuation signals
+    if ema_bullish and rsi_bullish and today.close > yesterday.high and netflow < -200:
+        return 1
+    if ema_bearish and rsi_bearish and today.close < yesterday.low and netflow > 300:
+        return 2
+    
+    return 0
 
 def simulate_trading(decision_func: Callable[[list[ExchangeRateItem], list[FearGreedItem], list[NetflowDto]], int], 
                     exchange_rates: list[ExchangeRateItem], 
@@ -136,8 +158,8 @@ def simulate_trading(decision_func: Callable[[list[ExchangeRateItem], list[FearG
             # Add 100 euros on the first day of each month
             if today.date.day == 1:
                 portfolio['btc'] += (100.00 / today.close)
-                if debug:
-                    console.print(f"[cyan]First day of month ({today.date}): Added €100.00 to portfolio[/cyan]")
+                # if debug:
+                #     console.print(f"[cyan]First day of month ({today.date}): Added €100.00 to portfolio[/cyan]")
             
             # Prepare aligned fear & greed data for the current time window if available
             current_fear_greed = None

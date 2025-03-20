@@ -14,68 +14,93 @@ from dto.NetflowDto import NetflowDto
 from dto.ObjectsGai import FearGreedItem
 from repos import CoinBaseRepo, FearGreedRepo
 from dto.ExchangeRateItem import ExchangeRateItem
-from repos.NetflowRepo import NetflowRepo
 
 console = Console()
 
 
-# Strategy: OBV EMA Crossover with Trend Confirmation - Uses 3/10-day EMAs of On-Balance Volume (OBV) for momentum signals. Buys when 3-day EMA crosses above 10-day EMA and price above 20-day SMA. Sells on cross below with price below SMA. Forces buy on 1st of month unless cross below occurs or price below SMA threshold.
-
-def daily_decision(exchange_rates: list[ExchangeRateItem], fear_greed_data: list[FearGreedItem], netflow_data: list[NetflowDto]) -> int:
+# Strategy: Hybrid Momentum/Mean Reversion - Combines moving average crossover, RSI, volatility, volume trends, Fear & Greed Index, and prioritizes investing new monthly funds
+def daily_decision(exchange_rates: list[ExchangeRateItem], fear_greed_data: list[FearGreedItem]) -> int:
     if len(exchange_rates) < 30:
-        raise ValueError(f"Insufficient data: {len(exchange_rates)} exchange rates provided, need at least 30")
+        raise ValueError(f"Insufficient data: {len(exchange_rates)} < 30")
     
     closing_prices = [er.close for er in exchange_rates]
     volumes = [er.volume for er in exchange_rates]
     current_date = exchange_rates[-1].date
-    
-    obv = [0.0]
-    for i in range(1, len(exchange_rates)):
-        prev_close = exchange_rates[i-1].close
-        current_close = exchange_rates[i].close
-        current_volume = exchange_rates[i].volume
-        
-        if current_close > prev_close:
-            obv.append(obv[-1] + current_volume)
-        elif current_close < prev_close:
-            obv.append(obv[-1] - current_volume)
-        else:
-            obv.append(obv[-1])
-    
-    def calculate_ema(data, window):
-        if not data:
-            return []
-        ema = [data[0]]
-        multiplier = 2 / (window + 1)
-        for val in data[1:]:
-            ema_val = (val - ema[-1]) * multiplier + ema[-1]
-            ema.append(ema_val)
-        return ema
-    
-    ema3 = calculate_ema(obv, 3)
-    ema10 = calculate_ema(obv, 10)
-    
-    if len(ema3) < 2 or len(ema10) < 2:
-        return 0
-    
-    cross_above = ema3[-2] <= ema10[-2] and ema3[-1] > ema10[-1]
-    cross_below = ema3[-2] >= ema10[-2] and ema3[-1] < ema10[-1]
-    
-    sma20 = sum(closing_prices[-20:]) / 20
-    current_price = closing_prices[-1]
-    price_above_sma = current_price > sma20
-    price_below_sma = current_price < sma20
-    
     is_first_of_month = current_date.day == 1
+
+    # Moving Averages
+    short_ma = sum(closing_prices[-7:])/7 if len(closing_prices) >=7 else 0
+    long_ma = sum(closing_prices[-21:])/21 if len(closing_prices)>=21 else 0
+    ma_crossover = short_ma > long_ma
+
+    # Volatility (5-day average)
+    volatility = []
+    for er in exchange_rates[-5:]:
+        if er.close != 0:
+            volatility.append((er.high - er.low)/er.close)
+        else:
+            volatility.append(0.0)
+    avg_volatility = sum(volatility)/len(volatility) if volatility else 0
+
+    # Volume Trend
+    recent_volume = sum(volumes[-3:])/3 if len(volumes)>=3 else 0
+    volume_ma_20 = sum(volumes[-20:])/20 if len(volumes)>=20 else 0
+    volume_trend = recent_volume > volume_ma_20
+
+    # RSI (14-day)
+    rsi = 50
+    if len(closing_prices) >= 15:
+        deltas = [closing_prices[i+1] - closing_prices[i] for i in range(-15, -1)]
+        gains = [d for d in deltas if d > 0]
+        losses = [-d for d in deltas if d < 0]
+        avg_gain = sum(gains)/14 if gains else 0
+        avg_loss = sum(losses)/14 if losses else 0
+        if avg_loss != 0:
+            rs = avg_gain / avg_loss
+            rsi = 100 - (100/(1 + rs))
+        else:
+            rsi = 100 if avg_gain > 0 else 50
+
+    # Fear & Greed
+    fg_index_text = fear_greed_data[-1].index_text if fear_greed_data else None
+
+    # Scoring system
+    buy_score, sell_score = 0, 0
     
+    # Technical indicators
+    buy_score += 1 if ma_crossover else 0
+    sell_score += 0 if ma_crossover else 1
+    
+    if rsi < 40:
+        buy_score += 1
+    elif rsi > 60:
+        sell_score += 1
+        
+    if avg_volatility > 0.03:
+        buy_score += 1
+    elif avg_volatility < 0.02:
+        sell_score += 1
+        
+    buy_score += 1 if volume_trend else 0
+    sell_score += 0 if volume_trend else 1
+
+    # Sentiment analysis
+    if fg_index_text == 'Extreme Fear':
+        buy_score += 1
+    elif fg_index_text == 'Extreme Greed':
+        sell_score += 1
+
+    # Monthly investment boost
     if is_first_of_month:
-        return 1 if not (cross_below and price_below_sma) else 0
+        buy_score += 2  # Strong priority to invest new funds
+
+    # Decision logic
+    if buy_score >= 4 or (is_first_of_month and buy_score >= 3):
+        return 1
+    elif sell_score >= 4 and not is_first_of_month:
+        return 2
     else:
-        if cross_above and price_above_sma:
-            return 1
-        elif cross_below and price_below_sma:
-            return 2
-    return 0
+        return 0
     
 
 def simulate_trading(decision_func: Callable[[list[ExchangeRateItem], list[FearGreedItem], list[NetflowDto]], int], 
@@ -168,7 +193,7 @@ def simulate_trading(decision_func: Callable[[list[ExchangeRateItem], list[FearG
                     current_netflow = aligned_netflow
             
             # Get decision for today
-            decision = decision_func(current_data, current_fear_greed, current_netflow)
+            decision = decision_func(current_data, aligned_fear_greed)
             
             # Execute trade based on decision
             if decision == 1 and portfolio['cash'] > 0:
@@ -270,44 +295,48 @@ def main():
     
     fear_greed_items = FearGreedRepo.FearGreedRepo.read_csv_file(datetime(2018, 1, 1), datetime(2024, 5, 3))
 
-    # Load Netflow data
-    netflow_repo = NetflowRepo("repos/ITB_btc_netflows.csv")  # Adjust path as needed
-    netflow_data = netflow_repo.get_range(datetime(2018, 1, 1).date(), datetime(2024, 9, 1).date())
-
     # Run the trading simulation
     console.print("\n[bold]Running trading strategy simulation...[/bold]")
-    final_value, _, _ = simulate_trading(daily_decision, all_items, fear_greed_items, netflow_data, debug=True)
+    final_value, _, _ = simulate_trading(daily_decision, all_items, fear_greed_items, debug=True)
     
-    # Calculate buy-and-hold strategy using the improved method
+    # Calculate buy-and-hold strategy
     console.print("\n[bold]Calculating buy-and-hold strategy...[/bold]")
-    buy_hold_value = calculate_buy_and_hold(all_items, fear_greed_items, netflow_data)
+    buy_hold_value = calculate_buy_and_hold(all_items)
+    
+    # Calculate performance metrics
+    trading_return_pct = ((final_value / 1000.0) - 1) * 100
+    buy_hold_return_pct = ((buy_hold_value / 1000.0) - 1) * 100
+    performance_diff = trading_return_pct - buy_hold_return_pct
     
     # Display comparison
     table = Table(title="Investment Strategy Comparison")
     table.add_column("Strategy", style="cyan")
+    table.add_column("Initial Investment", style="green")
     table.add_column("Final Value", style="green")
+    table.add_column("Return %", style="yellow")
     
     table.add_row(
         "Trading Algorithm", 
-        f"€{final_value:,.2f}"
+        "€1,000.00", 
+        f"€{final_value:,.2f}", 
+        f"{trading_return_pct:+,.2f}%"
     )
     table.add_row(
         "Buy and Hold", 
-        f"€{buy_hold_value:,.2f}"
+        "€1,000.00", 
+        f"€{buy_hold_value:,.2f}", 
+        f"{buy_hold_return_pct:+,.2f}%"
     )
     
     console.print("\n")
     console.print(table)
     
     # Display which strategy performed better
-    performance_diff_absolute = final_value - buy_hold_value
-    performance_diff_percent = (performance_diff_absolute / buy_hold_value) * 100
-    
     performance_message = ""
     if final_value > buy_hold_value:
-        performance_message = f"[bold green]Trading algorithm outperformed buy-and-hold by €{performance_diff_absolute:,.2f} ({performance_diff_percent:+,.2f}%)[/bold green]"
+        performance_message = f"[bold green]Trading algorithm outperformed buy-and-hold by {performance_diff:+,.2f}%[/bold green]"
     elif final_value < buy_hold_value:
-        performance_message = f"[bold red]Trading algorithm underperformed buy-and-hold by €{abs(performance_diff_absolute):,.2f} ({performance_diff_percent:+,.2f}%)[/bold red]"
+        performance_message = f"[bold red]Trading algorithm underperformed buy-and-hold by {abs(performance_diff):,.2f}%[/bold red]"
     else:
         performance_message = "[bold yellow]Trading algorithm performed exactly the same as buy-and-hold[/bold yellow]"
     

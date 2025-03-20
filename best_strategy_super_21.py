@@ -19,64 +19,110 @@ from repos.NetflowRepo import NetflowRepo
 console = Console()
 
 
-# Strategy: OBV EMA Crossover with Trend Confirmation - Uses 3/10-day EMAs of On-Balance Volume (OBV) for momentum signals. Buys when 3-day EMA crosses above 10-day EMA and price above 20-day SMA. Sells on cross below with price below SMA. Forces buy on 1st of month unless cross below occurs or price below SMA threshold.
+import numpy as np
 
-def daily_decision(exchange_rates: list[ExchangeRateItem], fear_greed_data: list[FearGreedItem], netflow_data: list[NetflowDto]) -> int:
-    if len(exchange_rates) < 30:
-        raise ValueError(f"Insufficient data: {len(exchange_rates)} exchange rates provided, need at least 30")
+def daily_decision(exchange_rates, fear_greed_data, netflow_data):
+    """
+    Enhanced Price-Netflow Divergence Momentum trading strategy.
+    Preserves the core successful mechanics while adding targeted improvements.
     
-    closing_prices = [er.close for er in exchange_rates]
-    volumes = [er.volume for er in exchange_rates]
-    current_date = exchange_rates[-1].date
-    
-    obv = [0.0]
-    for i in range(1, len(exchange_rates)):
-        prev_close = exchange_rates[i-1].close
-        current_close = exchange_rates[i].close
-        current_volume = exchange_rates[i].volume
+    Returns:
+        0: Hold
+        1: Buy
+        2: Sell
+    """
+    # Data validation - ensure we have enough data
+    if len(exchange_rates) < 6 or len(netflow_data) < 6:
+        return 0  # Insufficient data
         
-        if current_close > prev_close:
-            obv.append(obv[-1] + current_volume)
-        elif current_close < prev_close:
-            obv.append(obv[-1] - current_volume)
-        else:
-            obv.append(obv[-1])
+    # Extract last 5 days' price and netflow data - keeping original window size
+    last_5_prices = [er.close for er in exchange_rates[-5:]]
+    last_5_netflows = [nf.aggregated_exchanges for nf in netflow_data[-5:]]
     
-    def calculate_ema(data, window):
-        if not data:
-            return []
-        ema = [data[0]]
-        multiplier = 2 / (window + 1)
-        for val in data[1:]:
-            ema_val = (val - ema[-1]) * multiplier + ema[-1]
-            ema.append(ema_val)
-        return ema
+    # Calculate 4-day price changes and corresponding netflows
+    price_changes = [last_5_prices[i+1] - last_5_prices[i] for i in range(4)]
+    aligned_netflows = last_5_netflows[:4]
     
-    ema3 = calculate_ema(obv, 3)
-    ema10 = calculate_ema(obv, 10)
-    
-    if len(ema3) < 2 or len(ema10) < 2:
-        return 0
-    
-    cross_above = ema3[-2] <= ema10[-2] and ema3[-1] > ema10[-1]
-    cross_below = ema3[-2] >= ema10[-2] and ema3[-1] < ema10[-1]
-    
-    sma20 = sum(closing_prices[-20:]) / 20
-    current_price = closing_prices[-1]
-    price_above_sma = current_price > sma20
-    price_below_sma = current_price < sma20
-    
-    is_first_of_month = current_date.day == 1
-    
-    if is_first_of_month:
-        return 1 if not (cross_below and price_below_sma) else 0
+    # Calculate correlation - use original calculation method as it performed better
+    if len(price_changes) < 2 or len(aligned_netflows) < 2:
+        correlation = 0
     else:
-        if cross_above and price_above_sma:
-            return 1
-        elif cross_below and price_below_sma:
-            return 2
-    return 0
+        x_mean = sum(price_changes)/len(price_changes)
+        y_mean = sum(aligned_netflows)/len(aligned_netflows)
+        numerator = sum((p - x_mean)*(n - y_mean) for p,n in zip(price_changes, aligned_netflows))
+        denom_x = (sum((p - x_mean)**2 for p in price_changes))**0.5
+        denom_y = (sum((n - y_mean)**2 for n in aligned_netflows))**0.5
+        correlation = numerator/(denom_x*denom_y) if (denom_x*denom_y) != 0 else 0
     
+    # Calculate 5-day metrics - keep original calculations
+    five_day_price_pct = ((last_5_prices[-1] / last_5_prices[0]) - 1) * 100
+    five_day_netflow_sum = sum(last_5_netflows)
+    
+    # Today's indicators
+    today_price_up = last_5_prices[-1] > exchange_rates[-2].close
+    today_netflow = last_5_netflows[-1]
+    
+    # Keep the original thresholds that were working well
+    # Original buy conditions with slight refinement
+    buy_signal = (
+        five_day_price_pct > 3 and
+        five_day_netflow_sum < -100 and
+        correlation < -0.5 and
+        today_price_up and
+        today_netflow < 0
+    )
+    
+    # Add one small refinement: check the magnitude of today's price change
+    if buy_signal and len(exchange_rates) >= 3:
+        # Calculate today's price change percentage
+        yesterday_price = exchange_rates[-2].close
+        today_price = exchange_rates[-1].close
+        today_pct_change = ((today_price / yesterday_price) - 1) * 100
+        
+        # Avoid buying if today's price jump is too extreme (potential fakeout)
+        if today_pct_change > 7:  # More than 7% in a single day might be a fakeout
+            buy_signal = False
+    
+    # Original sell conditions with minimal refinement
+    sell_signal = (
+        five_day_price_pct < -2 and
+        five_day_netflow_sum > 50 and
+        correlation > 0.5 and
+        last_5_prices[-1] < exchange_rates[-2].close and
+        today_netflow > 0
+    )
+    
+    # Add one small refinement for sell signals as well
+    if sell_signal and len(exchange_rates) >= 3:
+        yesterday_price = exchange_rates[-2].close
+        today_price = exchange_rates[-1].close
+        today_pct_change = ((today_price / yesterday_price) - 1) * 100
+        
+        # Avoid panic selling on extreme drops (potential for reversal)
+        if today_pct_change < -8:  # More than 8% drop might be oversold
+            sell_signal = False
+    
+    # Use fear/greed index only as a supplementary signal, not to override the main strategy
+    if fear_greed_data and len(fear_greed_data) > 0:
+        latest_fear_greed = fear_greed_data[-1].index
+        
+        # Only use fear/greed in extreme market conditions to confirm signals
+        if latest_fear_greed < 20 and sell_signal:  # Extreme fear
+            # Make sell signals slightly harder to trigger
+            if correlation <= 0.7:  # Require stronger correlation for sells during fear
+                sell_signal = False
+        
+        elif latest_fear_greed > 80 and buy_signal:  # Extreme greed
+            # Make buy signals slightly harder to trigger
+            if correlation >= -0.7:  # Require stronger negative correlation for buys during greed
+                buy_signal = False
+    
+    # Return decision - keeping the original priority logic
+    if sell_signal:
+        return 2
+    if buy_signal:
+        return 1
+    return 0    
 
 def simulate_trading(decision_func: Callable[[list[ExchangeRateItem], list[FearGreedItem], list[NetflowDto]], int], 
                     exchange_rates: list[ExchangeRateItem], 
