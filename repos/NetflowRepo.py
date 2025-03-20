@@ -4,7 +4,7 @@ from typing import List, Dict, Optional, Tuple, Set
 import os
 from collections import defaultdict
 
-from NetflowDto import NetflowDto
+from dto.NetflowDto import NetflowDto
 
 
 class DuplicateDateError(Exception):
@@ -67,10 +67,10 @@ class NetflowRepo:
                 
                 # Check for duplicate dates
                 date_count[entry_date] += 1
-                if date_count[entry_date] > 1:
-                    raise DuplicateDateError(f"Multiple entries found for date: {entry_date}")
+                if date_count[entry_date] <= 1:
+                    self.data_by_date[entry_date] = dto
                 
-                self.data_by_date[entry_date] = dto
+                
     
     def get_range(self, from_date: date, to_date: date, raise_if_missing: bool = False) -> List[NetflowDto]:
         """
