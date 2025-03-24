@@ -10,18 +10,8 @@ class NetflowDto:
     Represents cryptocurrency exchange flow data for a specific date.
     """
     date_time: datetime
-    price: Optional[float] = None
-    aggregated_exchanges: Optional[float] = None
-    binance: Optional[float] = None
-    bitfinex: Optional[float] = None
-    bitstamp: Optional[float] = None
-    coinbase: Optional[float] = None
-    gemini: Optional[float] = None
-    huobi: Optional[float] = None
-    kraken: Optional[float] = None
-    luno: Optional[float] = None
-    okex: Optional[float] = None
-    poloniex: Optional[float] = None
+    aggregated_exchanges_normalized: float = None
+    aggregated_exchanges: float = None
 
     @classmethod
     def from_csv_row(cls, row: dict) -> 'NetflowDto':
@@ -33,32 +23,37 @@ class NetflowDto:
             
         Returns:
             NetflowDto instance
+            
+        Raises:
+            ValueError: If any of the required values (DateTime, Aggregated Exchanges, 
+                    or AggrExchNormalized) is missing or cannot be converted to the proper type
         """
+        # Check if DateTime exists in the row
+        if 'DateTime' not in row or not row['DateTime']:
+            raise ValueError("Missing required field: DateTime")
+            
         # Parse the date time string to datetime object
-        date_time = datetime.fromisoformat(row['DateTime'].replace('Z', '+00:00'))
+        try:
+            date_time = datetime.fromisoformat(row['DateTime'].replace('Z', '+00:00'))
+        except (ValueError, AttributeError):
+            raise ValueError(f"Invalid DateTime format: {row.get('DateTime')}")
         
-        # Helper function to safely convert values to float
-        def safe_float(value):
+        # Helper function to safely convert values to float, throwing an exception on None
+        def safe_float(value, field_name):
             if value is None or value == '' or value == '**':
-                return None
+                raise ValueError(f"Missing required field: {field_name}")
             try:
                 return float(value)
             except (ValueError, TypeError):
-                return None
+                raise ValueError(f"Invalid numeric value for {field_name}: {value}")
         
-        # Convert data to appropriate types, handling missing values
+        # Convert data to appropriate types, raising exceptions for missing values
+        aggregated_exchanges = safe_float(row.get('Aggregated Exchanges'), 'Aggregated Exchanges')
+        aggregated_exchanges_normalized = safe_float(row.get('AggrExchNormalized'), 'AggrExchNormalized')
+        
+        # All required values are present and properly converted
         return cls(
             date_time=date_time,
-            price=safe_float(row.get('Price')),
-            aggregated_exchanges=safe_float(row.get('Aggregated Exchanges')),
-            binance=safe_float(row.get('Binance')),
-            bitfinex=safe_float(row.get('Bitfinex')),
-            bitstamp=safe_float(row.get('Bitstamp')),
-            coinbase=safe_float(row.get('Coinbase')),
-            gemini=safe_float(row.get('Gemini')),
-            huobi=safe_float(row.get('Huobi')),
-            kraken=safe_float(row.get('**Kraken')),
-            luno=safe_float(row.get('**Luno')),
-            okex=safe_float(row.get('Okex')),
-            poloniex=safe_float(row.get('Poloniex'))
+            aggregated_exchanges=aggregated_exchanges,
+            aggregated_exchanges_normalized=aggregated_exchanges_normalized
         )
