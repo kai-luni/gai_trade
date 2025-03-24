@@ -255,30 +255,39 @@ def calculate_buy_and_hold(exchange_rates, fear_greed_data=None, netflow_data=No
 def main():
     """Load and validate BTC/EUR historical data from CSV"""
     csv_path = 'repos/BTC_EUR.csv'
-
     console.print(f"\n📂 Loading historical data from {csv_path}", style="bold blue")
-
+    
+    # Define a common start and end date for all data sources
+    start_date = datetime(2018, 2, 4)
+    end_date = datetime(2025, 1, 1)  # Using the latest common date from your data
+    
+    console.print(f"\n[bold]Data range: {start_date.date()} to {end_date.date()}[/bold]")
+    
     # Load raw CSV data
     raw_data = CoinBaseRepo.CoinBaseRepo.read_csv_to_dict(csv_path)
-
+    
     # Convert to ExchangeRateItem objects
     all_items = CoinBaseRepo.CoinBaseRepo.get_exchange_rate_items(
-        datetime(2018, 1, 1),  # Broad initial filter
-        datetime(2025, 3, 5), 
+        start_date,
+        end_date,
         raw_data
     )
     
-    fear_greed_items = FearGreedRepo.FearGreedRepo.read_csv_file(datetime(2018, 1, 1), datetime(2024, 5, 3))
-
+    # Load Fear & Greed data
+    fear_greed_items = FearGreedRepo.FearGreedRepo.read_csv_file(start_date, end_date)
+    
     # Load Netflow data
-    netflow_repo = NetflowRepo("repos/ITB_btc_netflows.csv")  # Adjust path as needed
-    netflow_data = netflow_repo.get_range(datetime(2018, 1, 1).date(), datetime(2024, 9, 1).date())
-
+    netflow_repo = NetflowRepo("repos/ITB_btc_netflows.csv")
+    netflow_data = netflow_repo.get_range(start_date.date(), end_date.date())
+    
+    # Validate data lengths
+    validate_data_length(all_items, fear_greed_items, netflow_data)
+    
     # Run the trading simulation
     console.print("\n[bold]Running trading strategy simulation...[/bold]")
     final_value, _, _ = simulate_trading(daily_decision, all_items, fear_greed_items, netflow_data, debug=True)
     
-    # Calculate buy-and-hold strategy using the improved method
+    # Calculate buy-and-hold strategy
     console.print("\n[bold]Calculating buy-and-hold strategy...[/bold]")
     buy_hold_value = calculate_buy_and_hold(all_items, fear_greed_items, netflow_data)
     
@@ -286,23 +295,20 @@ def main():
     table = Table(title="Investment Strategy Comparison")
     table.add_column("Strategy", style="cyan")
     table.add_column("Final Value", style="green")
-    
     table.add_row(
-        "Trading Algorithm", 
+        "Trading Algorithm",
         f"€{final_value:,.2f}"
     )
     table.add_row(
-        "Buy and Hold", 
+        "Buy and Hold",
         f"€{buy_hold_value:,.2f}"
     )
-    
     console.print("\n")
     console.print(table)
     
     # Display which strategy performed better
     performance_diff_absolute = final_value - buy_hold_value
     performance_diff_percent = (performance_diff_absolute / buy_hold_value) * 100
-    
     performance_message = ""
     if final_value > buy_hold_value:
         performance_message = f"[bold green]Trading algorithm outperformed buy-and-hold by €{performance_diff_absolute:,.2f} ({performance_diff_percent:+,.2f}%)[/bold green]"
@@ -310,8 +316,42 @@ def main():
         performance_message = f"[bold red]Trading algorithm underperformed buy-and-hold by €{abs(performance_diff_absolute):,.2f} ({performance_diff_percent:+,.2f}%)[/bold red]"
     else:
         performance_message = "[bold yellow]Trading algorithm performed exactly the same as buy-and-hold[/bold yellow]"
-    
     console.print("\n" + performance_message)
+
+
+def validate_data_length(exchange_items, fear_greed_items, netflow_items):
+    """
+    Validate that all three data sources have the same length.
+    Throws an exception if there's a mismatch.
+    
+    Args:
+        exchange_items: List of exchange rate items
+        fear_greed_items: List of fear and greed index items
+        netflow_items: List of netflow data items
+    
+    Raises:
+        ValueError: If the data sources have different lengths
+    """
+    exchange_length = len(exchange_items)
+    fear_greed_length = len(fear_greed_items)
+    netflow_length = len(netflow_items)
+    
+    console.print(f"\n[bold]Data validation:[/bold]")
+    console.print(f"Exchange rate data points: {exchange_length}")
+    console.print(f"Fear & Greed data points: {fear_greed_length}")
+    console.print(f"Netflow data points: {netflow_length}")
+    
+    if not (exchange_length == fear_greed_length == netflow_length):
+        error_message = (
+            f"\n[bold red]ERROR: Data length mismatch![/bold red]\n"
+            f"Exchange rate: {exchange_length} days\n"
+            f"Fear & Greed: {fear_greed_length} days\n"
+            f"Netflow: {netflow_length} days"
+        )
+        console.print(error_message)
+        raise ValueError("Data sources have different lengths. Please ensure all data sources cover the same date range with no missing values.")
+    else:
+        console.print(f"[bold green]✓ All data sources have the same length: {exchange_length} days[/bold green]")
 
 if __name__ == "__main__":
     main()

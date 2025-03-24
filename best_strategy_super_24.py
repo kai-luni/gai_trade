@@ -12,59 +12,58 @@ from openai import AzureOpenAI
 
 from dto.NetflowDto import NetflowDto
 from dto.ObjectsGai import FearGreedItem
-from repos import CoinBaseRepo
+from repos import CoinBaseRepo, FearGreedRepo
 from dto.ExchangeRateItem import ExchangeRateItem
-from repos.FearGreedRepo import FearGreedRepo
 from repos.NetflowRepo import NetflowRepo
 
 console = Console()
 
 
-# Strategy: Trend Following - Further refined thresholds, decision logic, and responsiveness to market conditions
-# This strategy identifies strong trends using moving averages, volatility, volume, and RSI, while filtering signals effectively.
-# Improvements include dynamic thresholds, better edge case handling, and combining signals more intelligently.
+import numpy as np
 
-def daily_decision(exchange_rates: list[ExchangeRateItem]) -> int:
-    # Validate input length
-    if len(exchange_rates) < 30:
-        raise ValueError(f"Insufficient data: {len(exchange_rates)} days provided, at least 30 required.")
+# Strategy: Sentiment-Label Incongruity Reactor - Capitalize on mismatches between Fear/Greed Index numerical values and their categorical labels combined with capital movement extremes
+
+def daily_decision(exchange_rates: list[ExchangeRateItem], fear_greed_data: list[FearGreedItem], netflow_data: list[NetflowDto]) -> int:
     
-    # Extract closing prices, volumes, highs, and lows
-    closing_prices = [er.close for er in exchange_rates]
-    volumes = [er.volume for er in exchange_rates]
-    highs = [er.high for er in exchange_rates]
-    lows = [er.low for er in exchange_rates]
+    label_thresholds = {
+        'Extreme Fear': (0, 25), 'Fear': (26, 45),
+        'Neutral': (46, 55), 'Greed': (56, 75),
+        'Extreme Greed': (76, 100)
+    }
     
-    # Calculate moving averages
-    ma_3 = sum(closing_prices[-3:]) / 3
-    ma_30 = sum(closing_prices[-30:]) / 30
+    current_sentiment = fear_greed_data[-1]
+    label = current_sentiment.index_text
+    score = current_sentiment.index
     
-    # Calculate volatility for the last 3 days
-    volatility_3_days = sum([(highs[-i] - lows[-i]) / closing_prices[-i] for i in range(1, 4)]) / 3
+    current_day = current_sentiment.date.date()
+    netflow_sum = sum(nf.aggregated_exchanges for nf in netflow_data 
+                      if nf.date_time.date() == current_day)
     
-    # Calculate today's volume compared to the 30-day average
-    avg_volume_30 = sum(volumes[-30:]) / 30
-    volume_ratio = volumes[-1] / avg_volume_30 if avg_volume_30 != 0 else 0
+    expected_min, expected_max = label_thresholds[label]
+    label_discrepancy = 0
     
-    # Calculate RSI (Relative Strength Index) using the 14-day period
-    gains = [max(0, closing_prices[i] - closing_prices[i - 1]) for i in range(-14, 0)]
-    losses = [max(0, closing_prices[i - 1] - closing_prices[i]) for i in range(-14, 0)]
-    avg_gain = sum(gains) / 14
-    avg_loss = sum(losses) / 14
-    rs = avg_gain / avg_loss if avg_loss != 0 else float('inf')
-    rsi = 100 - (100 / (1 + rs))
+    if score < expected_min:
+        label_discrepancy = (expected_min - score)/expected_min if expected_min !=0 else 1
+    elif score > expected_max:
+        label_discrepancy = (score - expected_max)/(100 - expected_max) if expected_max !=100 else 1
     
-    # Further refined thresholds and decision logic
-    # Buy signal: Strong upward trend, confirmed by volatility, volume, and RSI in a favorable range
-    if ma_3 > ma_30 * 1.01 and volatility_3_days > 0.025 and volume_ratio > 1.3 and 40 < rsi < 65:
+    flow_extreme = abs(netflow_sum) > 2500
+    
+    if label_discrepancy > 0.25:
+        if (score > expected_max and netflow_sum < -1500) or (score < expected_min and netflow_sum > 1500):
+            return 1
+        elif (score < expected_min and netflow_sum < -2000 and flow_extreme) or (score > expected_max and netflow_sum > 2000):
+            return 2
+    
+    if 'Extreme' in label and flow_extreme:
+        return 2 if 'Fear' in label else 1
+    
+    volatility = max(er.high - er.low for er in exchange_rates[-3:]) / (sum(er.close for er in exchange_rates[-3:])/3 or 1)
+    if volatility > 0.12 and netflow_sum < -3000:
         return 1
-    # Sell signal: Strong downward trend, confirmed by volatility, volume, and RSI in a favorable range
-    elif ma_3 < ma_30 * 0.99 and volatility_3_days > 0.025 and volume_ratio > 1.3 and rsi > 55:
-        return 2
-    # Hold signal: No clear trend or conflicting indicators
-    else:
-        return 0
     
+    return 0
+             
 
 def simulate_trading(decision_func: Callable[[list[ExchangeRateItem], list[FearGreedItem], list[NetflowDto]], int], 
                     exchange_rates: list[ExchangeRateItem], 
@@ -124,8 +123,8 @@ def simulate_trading(decision_func: Callable[[list[ExchangeRateItem], list[FearG
             # Add 100 euros on the first day of each month
             if today.date.day == 1:
                 portfolio['btc'] += (100.00 / today.close)
-                if debug:
-                    console.print(f"[cyan]First day of month ({today.date}): Added €100.00 to portfolio[/cyan]")
+                # if debug:
+                #     console.print(f"[cyan]First day of month ({today.date}): Added €100.00 to portfolio[/cyan]")
             
             # Prepare aligned fear & greed data for the current time window if available
             current_fear_greed = None
@@ -156,7 +155,7 @@ def simulate_trading(decision_func: Callable[[list[ExchangeRateItem], list[FearG
                     current_netflow = aligned_netflow
             
             # Get decision for today
-            decision = decision_func(current_data)
+            decision = decision_func(current_data, current_fear_greed, current_netflow)
             
             # Execute trade based on decision
             if decision == 1 and portfolio['cash'] > 0:
@@ -247,7 +246,7 @@ def main():
     
     # Define a common start and end date for all data sources
     start_date = datetime(2018, 2, 4)
-    end_date = datetime(2025, 1, 1)  # Using the latest common date from your data
+    end_date = datetime(2025, 3, 1)  # Using the latest common date from your data
     
     console.print(f"\n[bold]Data range: {start_date.date()} to {end_date.date()}[/bold]")
     
@@ -262,10 +261,10 @@ def main():
     )
     
     # Load Fear & Greed data
-    fear_greed_items = FearGreedRepo.read_csv_file(start_date, end_date)
+    fear_greed_items = FearGreedRepo.FearGreedRepo.read_csv_file(start_date, end_date)
     
     # Load Netflow data
-    netflow_repo = NetflowRepo("repos/ITB_btc_netflows.csv")
+    netflow_repo = NetflowRepo("repos/BtcNetflowNormalized.csv")
     netflow_data = netflow_repo.get_range(start_date.date(), end_date.date())
     
     # Validate data lengths

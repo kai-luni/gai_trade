@@ -12,59 +12,87 @@ from openai import AzureOpenAI
 
 from dto.NetflowDto import NetflowDto
 from dto.ObjectsGai import FearGreedItem
-from repos import CoinBaseRepo
+from repos import CoinBaseRepo, FearGreedRepo
 from dto.ExchangeRateItem import ExchangeRateItem
-from repos.FearGreedRepo import FearGreedRepo
 from repos.NetflowRepo import NetflowRepo
 
 console = Console()
 
 
-# Strategy: Trend Following - Further refined thresholds, decision logic, and responsiveness to market conditions
-# This strategy identifies strong trends using moving averages, volatility, volume, and RSI, while filtering signals effectively.
-# Improvements include dynamic thresholds, better edge case handling, and combining signals more intelligently.
+import numpy as np
 
-def daily_decision(exchange_rates: list[ExchangeRateItem]) -> int:
-    # Validate input length
-    if len(exchange_rates) < 30:
-        raise ValueError(f"Insufficient data: {len(exchange_rates)} days provided, at least 30 required.")
+# Strategy: Quantum Entanglement Strategy v2 - Combines adaptive volatility regimes with sentiment-fueled netflow paradoxes and fractal momentum ignition
+
+def daily_decision(exchange_rates: list[ExchangeRateItem], fear_greed_data: list[FearGreedItem], netflow_data: list[NetflowDto]) -> int:
+    from scipy.stats import linregress, zscore
+    import numpy as np
     
-    # Extract closing prices, volumes, highs, and lows
-    closing_prices = [er.close for er in exchange_rates]
-    volumes = [er.volume for er in exchange_rates]
-    highs = [er.high for er in exchange_rates]
-    lows = [er.low for er in exchange_rates]
+    def quantum_volatility(close_prices):
+        returns = np.diff(np.log(close_prices))
+        vol = np.std(returns[-14:]) * np.sqrt(365)
+        fractal_vol = np.mean(np.abs(returns[-7:] - returns[-14:-7]))
+        return 0.7 * vol + 0.3 * fractal_vol
     
-    # Calculate moving averages
-    ma_3 = sum(closing_prices[-3:]) / 3
-    ma_30 = sum(closing_prices[-30:]) / 30
+    def paradox_score(sentiment, netflow):
+        sentiment_change = np.diff(sentiment[-3:]).mean()
+        netflow_roc = np.diff(netflow[-3:]).mean()
+        return (sentiment_change * -netflow_roc) / (1 + abs(netflow_roc))
     
-    # Calculate volatility for the last 3 days
-    volatility_3_days = sum([(highs[-i] - lows[-i]) / closing_prices[-i] for i in range(1, 4)]) / 3
+    def fractal_ignition(prices):
+        lr = linregress(range(5), prices[-5:]).slope
+        ma_ratio = np.mean(prices[-3:]) / (np.mean(prices[-7:]) + 1e-8)
+        return lr * ma_ratio * 100
     
-    # Calculate today's volume compared to the 30-day average
-    avg_volume_30 = sum(volumes[-30:]) / 30
-    volume_ratio = volumes[-1] / avg_volume_30 if avg_volume_30 != 0 else 0
+    # Data preparation
+    close_prices = [er.close for er in exchange_rates[-30:]]
+    sentiment = [fg.index for fg in fear_greed_data[-30:]]
+    netflow = [nf.aggregated_exchanges_normalized for nf in netflow_data[-30:]]
     
-    # Calculate RSI (Relative Strength Index) using the 14-day period
-    gains = [max(0, closing_prices[i] - closing_prices[i - 1]) for i in range(-14, 0)]
-    losses = [max(0, closing_prices[i - 1] - closing_prices[i]) for i in range(-14, 0)]
-    avg_gain = sum(gains) / 14
-    avg_loss = sum(losses) / 14
-    rs = avg_gain / avg_loss if avg_loss != 0 else float('inf')
-    rsi = 100 - (100 / (1 + rs))
+    # Core indicators
+    q_vol = quantum_volatility(close_prices)
+    p_score = paradox_score(sentiment, netflow)
+    f_ignition = fractal_ignition(close_prices)
     
-    # Further refined thresholds and decision logic
-    # Buy signal: Strong upward trend, confirmed by volatility, volume, and RSI in a favorable range
-    if ma_3 > ma_30 * 1.01 and volatility_3_days > 0.025 and volume_ratio > 1.3 and 40 < rsi < 65:
+    # Adaptive thresholds
+    vol_regime = 'hyper' if q_vol > 0.8 else 'high' if q_vol > 0.6 else 'normal'
+    momentum_phase = 'accelerating' if f_ignition > 15 else 'decelerating' if f_ignition < -15 else 'stable'
+    
+    # Paradox matrix
+    buy_signals = 0
+    sell_signals = 0
+    
+    # Volatility-fueled paradox detection
+    if vol_regime in ['hyper', 'high']:
+        if p_score > 0.4 and momentum_phase == 'accelerating':
+            buy_signals += 2
+        elif p_score < -0.3 and netflow[-1] > np.percentile(netflow, 75):
+            sell_signals += 3
+    
+    # Fractal momentum alignment
+    if momentum_phase == 'accelerating':
+        if vol_regime == 'normal' and f_ignition > 25:
+            buy_signals += 1
+    elif momentum_phase == 'decelerating':
+        if netflow[-1] < np.percentile(netflow, 25):
+            sell_signals += 2
+    
+    # Netflow quantum tunneling
+    nf_z = zscore(netflow[-7:])[-1]
+    if abs(nf_z) > 1.5:
+        if nf_z > 1.5 and close_prices[-1] < np.mean(close_prices[-3:]):
+            sell_signals += 2
+        elif nf_z < -1.5 and close_prices[-1] > np.mean(close_prices[-3:]):
+            buy_signals += 2
+    
+    # Decision matrix
+    if buy_signals >= 3 and sell_signals < 2:
         return 1
-    # Sell signal: Strong downward trend, confirmed by volatility, volume, and RSI in a favorable range
-    elif ma_3 < ma_30 * 0.99 and volatility_3_days > 0.025 and volume_ratio > 1.3 and rsi > 55:
+    elif sell_signals >= 3 and buy_signals < 1:
         return 2
-    # Hold signal: No clear trend or conflicting indicators
-    else:
-        return 0
-    
+    elif (buy_signals >= 2 and sell_signals >= 2) and q_vol > 0.7:
+        return 2  # Hyper volatility conflict resolution
+    return 0
+             
 
 def simulate_trading(decision_func: Callable[[list[ExchangeRateItem], list[FearGreedItem], list[NetflowDto]], int], 
                     exchange_rates: list[ExchangeRateItem], 
@@ -124,8 +152,8 @@ def simulate_trading(decision_func: Callable[[list[ExchangeRateItem], list[FearG
             # Add 100 euros on the first day of each month
             if today.date.day == 1:
                 portfolio['btc'] += (100.00 / today.close)
-                if debug:
-                    console.print(f"[cyan]First day of month ({today.date}): Added €100.00 to portfolio[/cyan]")
+                # if debug:
+                #     console.print(f"[cyan]First day of month ({today.date}): Added €100.00 to portfolio[/cyan]")
             
             # Prepare aligned fear & greed data for the current time window if available
             current_fear_greed = None
@@ -156,7 +184,7 @@ def simulate_trading(decision_func: Callable[[list[ExchangeRateItem], list[FearG
                     current_netflow = aligned_netflow
             
             # Get decision for today
-            decision = decision_func(current_data)
+            decision = decision_func(current_data, current_fear_greed, current_netflow)
             
             # Execute trade based on decision
             if decision == 1 and portfolio['cash'] > 0:
@@ -247,7 +275,7 @@ def main():
     
     # Define a common start and end date for all data sources
     start_date = datetime(2018, 2, 4)
-    end_date = datetime(2025, 1, 1)  # Using the latest common date from your data
+    end_date = datetime(2025, 3, 1)  # Using the latest common date from your data
     
     console.print(f"\n[bold]Data range: {start_date.date()} to {end_date.date()}[/bold]")
     
@@ -262,10 +290,10 @@ def main():
     )
     
     # Load Fear & Greed data
-    fear_greed_items = FearGreedRepo.read_csv_file(start_date, end_date)
+    fear_greed_items = FearGreedRepo.FearGreedRepo.read_csv_file(start_date, end_date)
     
     # Load Netflow data
-    netflow_repo = NetflowRepo("repos/ITB_btc_netflows.csv")
+    netflow_repo = NetflowRepo("repos/BtcNetflowNormalized.csv")
     netflow_data = netflow_repo.get_range(start_date.date(), end_date.date())
     
     # Validate data lengths
