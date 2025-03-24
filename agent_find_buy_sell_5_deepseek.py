@@ -8,7 +8,15 @@ import time
 from dto.NetflowDto import NetflowDto
 from dto.ExchangeRateItem import ExchangeRateItem
 from dto.ObjectsGai import FearGreedItem
+from helper.LoggerPrime import LoggerPrime, LogLevel
+
 load_dotenv()
+
+# Initialize logger
+logger = LoggerPrime(
+    name="trading_bot",
+    log_file="trading_bot.log"
+)
 
 # Check Azure OpenAI credentials
 AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
@@ -22,28 +30,19 @@ if not AZURE_OPENAI_API_KEY or not AZURE_OPENAI_ENDPOINT:
 import warnings
 import argparse
 import sys
-import time
 from datetime import datetime, timedelta
-from rich.console import Console
 from rich.panel import Panel
 from openai import AzureOpenAI, OpenAI
 from repos import CoinBaseRepo, FearGreedRepo, NetflowRepo
 
 warnings.simplefilter("ignore", DeprecationWarning)
 
-# Initialize Azure OpenAI client
-# client = AzureOpenAI(
-#     api_key=AZURE_OPENAI_API_KEY,
-#     api_version="2023-12-01-preview",
-#     azure_endpoint=AZURE_OPENAI_ENDPOINT
-# )
-# model_name = "gpt-4o"
+# Initialize OpenAI client
 client = OpenAI(
     base_url="https://api.studio.nebius.ai/v1/",
     api_key=os.environ.get("NEBIUS_API_KEY"),
 )
 model_name = "deepseek-ai/DeepSeek-R1-fast"
-console = Console()
 
 # -----------------------------
 # 2. Core Domain Objects
@@ -52,39 +51,6 @@ console = Console()
 # -----------------------------
 # 3. Data Preparation
 # -----------------------------
-def load_historical_data() -> list[ExchangeRateItem]:
-    """Load and validate BTC/EUR historical data from CSV"""
-    csv_path = 'repos/BTC_EUR.csv'
-    if not os.path.exists(csv_path):
-        raise FileNotFoundError(f"Data file not found: {csv_path}")
-
-    console.print(f"\n📂 Loading historical data from {csv_path}", style="bold blue")
-    
-    # Load raw CSV data
-    raw_data = CoinBaseRepo.CoinBaseRepo.read_csv_to_dict(csv_path)
-    
-    # Convert to ExchangeRateItem objects
-    all_items = CoinBaseRepo.CoinBaseRepo.get_exchange_rate_items(
-        datetime(2018, 1, 1),  # Broad initial filter
-        datetime(2024, 9, 1), 
-        raw_data
-    )
-    
-    # Filter and sort data
-    filtered_items = [
-        item for item in all_items
-        if datetime(2018, 12, 31) <= item.date <= datetime(2024, 1, 7)
-    ]
-    filtered_items.sort(key=lambda x: x.date)
-    
-    # Data integrity checks
-    if len(filtered_items) < 365:
-        raise ValueError("Insufficient historical data (less than 1 year)")
-    
-    console.print(f"✅ Successfully loaded {len(filtered_items)} trading days")
-    console.print(f"⏳ Date range: {filtered_items[0].date:%Y-%m-%d} → {filtered_items[-1].date:%Y-%m-%d}")
-    
-    return filtered_items
 
 # -----------------------------
 # 4. LLM Strategy Generation
@@ -113,18 +79,15 @@ def generate_trading_strategy(money_if_never_sell, feedback: str = "", attempt_n
     # Initialize variables
     temperature = 0.5  # Default temperature if not set elsewhere
     
-    # Logging file setup - ONLY FOR LLM MESSAGES
-    log_file = 'log.txt'
-    with open(log_file, 'a') as log:
-        log.write("\n" + "=" * 40 + "\n")
-        log.write(f"Execution Date: {datetime.now()}\n")
-    
     # Update the base prompt to include Netflow data
     base_prompt = (
-        "You are a professional algorithmic trader creating a Python function for Bitcoin trading. "
+        "You are a REVOLUTIONARY algorithmic trader creating an experimental Python function for Bitcoin trading. "
+        "I need you to break conventional trading wisdom and devise something truly ORIGINAL. "
         "I need ONLY the complete Python code with NO explanations outside the code comments.\n\n"
+        
         "Write a Python function named 'daily_decision' using this EXACT signature:\n"
         "def daily_decision(exchange_rates: list[ExchangeRateItem], fear_greed_data: list[FearGreedItem], netflow_data: list[NetflowDto]) -> int:\n\n"
+        
         "=== INPUT SPECIFICATIONS ===\n"
         "1. ExchangeRateItem PREDEFINED CLASS (DO NOT REDECLARE) with fields:\n"
         " - date: datetime (access via .date)\n"
@@ -145,20 +108,40 @@ def generate_trading_strategy(money_if_never_sell, feedback: str = "", attempt_n
         "   Negative values indicate BTC flowing OUT OF exchanges (bullish - people are withdrawing to hold)\n"
         "4. All input lists are chronological - exchange_rates[-1], fear_greed_data[-1], and netflow_data[-1] represent today\n"
         "5. The data is checked to be complete, all fields have values. The data is going at least 30 days back, mostly more.\n"
+        
         "=== OUTPUT REQUIREMENTS ===\n"
         "Return ONLY 0/1/2 integer. NO OTHER OUTPUT:\n"
         "- 0: Hold | 1: Buy today | 2: Sell today\n"
         "NOTE: The algorithm automatically adds 100 EUR in BTC on account. \n\n"
+        
+        "=== INNOVATION CHALLENGE ===\n"
+        "🚀 BREAK THE MOLD! Traditional trading strategies often fail in crypto markets. Develop something that defies conventional wisdom.\n"
+        "🧠 Consider these unconventional approaches (or invent your own):\n"
+        " - Pattern interruption: Trade AGAINST clear patterns when specific conditions are met\n"
+        " - Meta-indicators: Create indicators that measure the reliability of other indicators\n"
+        " - Behavioral economics: Model market psychology, not just prices\n"
+        " - Contrarian timing: Buy when BOTH technicals AND sentiment suggest selling (and vice versa)\n"
+        " - Multi-timeframe adaptive parameters: Dynamically adjust thresholds based on volatility regimes\n"
+        " - Sentiment-price divergence: Identify when market sentiment doesn't match price action\n"
+        " - 'Hidden' signal amplifiers: Identify when minor signals are more significant than major ones\n"
+        " - Incorporate cyclical patterns beyond standard cycles (consider human psychology patterns)\n"
+        " - Noise-filtering techniques that identify true signals amid market chaos\n\n"
+        
         "=== STRATEGY RULES ===\n"
-        "1. START with '# Strategy: [Strategy Type] - ' comment explaining your approach in detail (including hardcoded values etc)\n"
+        "1. START with '# Strategy: [Strategy Type] - ' comment explaining your RADICAL approach in detail\n"
         "   - This comment MUST be on its own line ABOVE the function definition\n"
         "   - There MUST be a linebreak after this comment\n"
         "   - The function definition must start on a new line after the strategy comment\n"
+        "   - REALLY PUT THOUGHT into naming your strategy something original!\n"
         "2. IMPORTANT: The algorithm receives 100 EUR to invest on the 1st of each month. These funds are added to the available cash balance regardless of the daily_decision output. When returning \"1\" (Buy), the algorithm should use available cash to purchase BTC.\n"
-        "3. Required technical calculations (you must calculate these, but you have complete freedom in how you use them):\n"
-        " a) There are no requirements, be creative.\n"
-        "4. BE CREATIVE! You can combine these metrics in novel ways or create additional indicators from the price data.\n"
-        "5. You can also use sub functions to make more complex calculations\n"
+        "3. EMBRACE CREATIVITY:\n"
+        " a) Develop adaptive thresholds that evolve with market conditions, not fixed values\n"
+        " b) Combine multiple data sources in ways that reveal hidden insights\n"
+        " c) Create novel mathematical relationships between technical and sentiment data\n"
+        " d) Consider how the RELATIONSHIP between indicators might be more important than the indicators themselves\n"
+        "4. DEFY CONVENTIONAL TRADING WISDOM! The most profitable strategies often appear counterintuitive at first glance.\n"
+        "5. You can use sub functions to create sophisticated calculations\n"
+        
         "=== CODING CONSTRAINTS ===\n"
         "1. FUNCTION NAME MUST BE 'daily_decision' EXACTLY\n"
         "2. DO NOT IMPORT MODULES or REDEFINE CLASSES\n"
@@ -169,6 +152,7 @@ def generate_trading_strategy(money_if_never_sell, feedback: str = "", attempt_n
         "4. Complete all variable assignments\n"
         "5. Handle division zero errors in calculations\n"
         "6. Use f-strings for error messages\n\n"
+        
         "PROVIDE ONLY THE COMPLETE FUNCTION CODE. NO EXPLANATIONS OUTSIDE THE CODE COMMENTS.\n"
     )
     
@@ -327,7 +311,7 @@ def generate_trading_strategy(money_if_never_sell, feedback: str = "", attempt_n
                     if in_code_section and not line.startswith("---"):
                         code_lines.append(line)
                 
-                # Use previous_code in refinement mode (NEW ADDITION)
+                # Use previous_code in refinement mode
                 if previous_code:
                     messages.append({
                         "role": "user",
@@ -399,34 +383,28 @@ def generate_trading_strategy(money_if_never_sell, feedback: str = "", attempt_n
                 )
             })
     
-    # Debug output for prompt history (console only)
+    # Debug output for prompt history
     if debug:
-        from rich.text import Text
-        from rich.syntax import Syntax
-        from rich.box import ROUNDED
-
-        debug_output = Text("LLM Prompt Chain:\n", style="bold cyan")
-        debug_output.append(f"\nMode: {mode} (Temperature: {temperature:.2f})\n", style="bold magenta")
+        # Set debug log level if debug flag is enabled
+        logger.set_level(console_level=LogLevel.DEBUG)
         
+        debug_output = f"\nMode: {mode} (Temperature: {temperature:.2f})\n"
         for idx, msg in enumerate(messages, 1):
-            debug_output.append(f"\n{idx}. {msg['role'].upper()}:\n", style="bold yellow")
+            debug_output += f"\n{idx}. {msg['role'].upper()}:\n"
             content = msg['content'].replace("\n", "\n ")
-            debug_output.append(f" {content}\n", style="bright_white")
-        console.print(Panel(
+            debug_output += f" {content}\n"
+        
+        logger.panel(
             debug_output,
-            title=f"[bold]DEBUG - ATTEMPT {attempt_num}/{max_attempts} ({mode})[/]",
+            title=f"DEBUG - ATTEMPT {attempt_num}/{max_attempts} ({mode})",
             border_style="bright_blue",
             padding=(1, 2),
-            box=ROUNDED,
-            width=min(console.width, 140)
-        ))
+            width=140
+        )
     
-    # Log messages to LLM to log file
-    with open(log_file, 'a') as log:
-        log.write("\n>>>>>>>>>> TO LLM:\n")
-        for msg in messages:
-            log.write(f"{msg['role'].upper()}: {msg['content']}\n")
-
+    # Log LLM interaction (replaces previous file logging)
+    prompt_text = "\n".join([f"{msg['role'].upper()}: {msg['content']}" for msg in messages])
+    
     # API call with retry mechanism
     max_retries = 5
     retry_delay = 2  # Initial delay in seconds
@@ -448,39 +426,34 @@ def generate_trading_strategy(money_if_never_sell, feedback: str = "", attempt_n
             raw_response_text = response.choices[0].message.content
             cleaned_code = extract_clean_response(raw_response_text)
             
-            # Log success (console only)
-            console.print(f"[green]API call successful on attempt {retry + 1}[/green]")
+            # Log success
+            logger.success(f"API call successful on attempt {retry + 1}")
             
-            # Log the response to log file (raw LLM response only)
-            with open(log_file, 'a') as log:
-                log.write("\n>>>>>>>>>> FROM LLM:\n")
-                log.write(f"{cleaned_code}\n")
+            # Log the LLM interaction
+            logger.log_llm_interaction(prompt_text, cleaned_code)
             
             if debug:
-                # console.print("\n[bold magenta]RAW LLM RESPONSE:[/bold magenta]")
-                # console.print(Panel(raw_response_text, title="Original Response", style="yellow"))
-                console.print("\n[bold green]PROCESSED CODE:[/bold green]")
-                console.print(Panel(cleaned_code, title="Final Output", style="green"))
+                logger.panel(cleaned_code, title="Final Output", style="green")
             
             # Successful API call, return the response
             return cleaned_code
             
         except Exception as e:
-            # Log error (console only)
+            # Log error
             error_msg = f"API error on retry {retry + 1}/{max_retries}: {str(e)}"
-            console.print(f"[yellow]{error_msg}[/yellow]")
+            logger.warning(error_msg)
             
             # Check if we've reached max retries
             if retry == max_retries - 1:
                 # If this was our last attempt, exit application
                 fatal_error = f"FATAL ERROR: Maximum retries ({max_retries}) exceeded. Last error: {str(e)}"
-                console.print(f"[bold red]{fatal_error}[/bold red]")
+                logger.critical(fatal_error)
                 raise RuntimeError(fatal_error)  # Raise exception to terminate execution
             
             # Exponential backoff with jitter
             jitter = random.uniform(0, 0.5)
             sleep_time = retry_delay * (2 ** retry) + jitter
-            console.print(f"[yellow]Retrying in {sleep_time:.2f} seconds...[/yellow]")
+            logger.warning(f"Retrying in {sleep_time:.2f} seconds...")
             time.sleep(sleep_time)
 
 
@@ -575,7 +548,7 @@ def simulate_trading(decision_func: Callable[[list[ExchangeRateItem], list[FearG
             if today.date.day == 1:
                 portfolio['btc'] += (100.00 / today.close)
                 # if debug:
-                #     console.print(f"[cyan]First day of month ({today.date}): Added €100.00 to portfolio[/cyan]")
+                #     logger.debug(f"First day of month ({today.date}): Added €100.00 to portfolio")
             
             # Prepare aligned fear & greed data for the current time window if available
             current_fear_greed = None
@@ -610,11 +583,11 @@ def simulate_trading(decision_func: Callable[[list[ExchangeRateItem], list[FearG
             
             # Execute trade based on decision
             if decision == 1 and portfolio['cash'] > 0:
-                console.print(f"[green]BUY signal on {today.date} at price {today.close:.2f}[/green]")
+                logger.success(f"BUY signal on {today.date} at price {today.close:.2f}")
                 portfolio['btc'] = portfolio['btc'] + (portfolio['cash'] / today.close)
                 portfolio['cash'] = 0.0
             elif decision == 2 and portfolio['btc'] > 0:
-                console.print(f"[red]SELL signal on {today.date} at price {today.close:.2f}[/red]")
+                logger.error(f"SELL signal on {today.date} at price {today.close:.2f}")
                 portfolio['cash'] = portfolio['cash'] + (portfolio['btc'] * today.close)
                 portfolio['btc'] = 0.0
             
@@ -639,7 +612,7 @@ def simulate_trading(decision_func: Callable[[list[ExchangeRateItem], list[FearG
                     except:
                         pass
                 
-                console.print(f"[blue]Day {today.date}:[/blue] Decision = {decision}, Price = {today.close:.2f}, Cash = €{portfolio['cash']:.2f}, BTC Cash = {(portfolio['btc'] * today.close):.2f}{fg_info}{nf_info}")
+                logger.debug(f"Day {today.date}: Decision = {decision}, Price = {today.close:.2f}, Cash = €{portfolio['cash']:.2f}, BTC Cash = {(portfolio['btc'] * today.close):.2f}{fg_info}{nf_info}")
             
             # Record portfolio value (cash + BTC value)
             current_value = portfolio['cash'] + (portfolio['btc'] * today.close)
@@ -648,7 +621,7 @@ def simulate_trading(decision_func: Callable[[list[ExchangeRateItem], list[FearG
         except Exception as e:
             error_msg = f"Error on {today.date}: {str(e)}"
             if debug:
-                console.print(f"[red]{error_msg}[/red]")
+                logger.error(error_msg)
             
             # Add error to collection with date context
             errors.append(error_msg)
@@ -678,7 +651,7 @@ def validate_strategy(money_if_never_sell: float, code: str, historical_data: li
         return False, "Missing daily_decision function", ["Code doesn't contain a daily_decision function"]
 
     # Run simulation with error collection
-    console.print("\n[bold]💰 Running Trading Simulation[/bold]")
+    logger.info("\n💰 Running Trading Simulation")
     try:
         final_value, value_history, errors = simulate_trading(decision_func, historical_data, fear_greed_data, netflow_data, debug=debug)
         
@@ -696,13 +669,14 @@ def validate_strategy(money_if_never_sell: float, code: str, historical_data: li
         
         # Display simulation errors if any
         if errors:
-            error_summary = "\n[bold red]Simulation Errors:[/bold red]\n"
+            error_summary = "\nSimulation Errors:\n"
             error_summary += "\n".join([f"- {err}" for err in errors[:10]])
             if len(errors) > 10:
                 error_summary += f"\n- Plus {len(errors) - 10} more errors..."
-            console.print(error_summary)
+            logger.error(error_summary)
             
-        console.print(Panel.fit(result_summary, title="Simulation Results", style="green" if final_value >= money_if_never_sell else "red"))
+        panel_style = "green" if final_value > money_if_never_sell else "red"
+        logger.panel(result_summary, title="Simulation Results", style=panel_style)
         return True, f"{result_summary}", errors
         
     except Exception as e:
@@ -726,26 +700,40 @@ def parse_arguments():
 
 def main():
     args = parse_arguments()  
+    # Set debug log level if debug flag is enabled
+    if args.debug:
+        logger.set_level(console_level=LogLevel.DEBUG)
+        
     # test the test function  
     if args.test:
         test_app()
         return
-    console.print(Panel.fit(
-        f"[bold]📈 AI Trading Bot (with Fear & Greed and Netflow Data)[/bold]\n"
+    
+    logger.panel(
+        f"📈 AI Trading Bot (with Fear & Greed and Netflow Data)\n"
         f"Target: €{args.threshold:.2f}\n"
         f"Max Attempts: {args.attempts}",
         style="blue"
-    ))
+    )
 
+    # Define a common start and end date for all data sources
+    start_date = datetime(2018, 2, 4)
+    end_date = datetime(2025, 3, 1)
     # Load historical price data
-    historical_data = load_historical_data()
+    raw_data = CoinBaseRepo.CoinBaseRepo.read_csv_to_dict('repos/BTC_EUR.csv')
+    # Convert to ExchangeRateItem objects
+    historical_data = CoinBaseRepo.CoinBaseRepo.get_exchange_rate_items(
+        start_date,  # Broad initial filter
+        end_date, 
+        raw_data
+    )
     
     # Load Fear & Greed data
-    fear_greed_data = FearGreedRepo.FearGreedRepo.read_csv_file(datetime(2018, 1, 1), datetime(2024, 9, 1))
+    fear_greed_data = FearGreedRepo.FearGreedRepo.read_csv_file(start_date, end_date)
     
     # Load Netflow data
     netflow_repo = NetflowRepo.NetflowRepo("repos/ITB_btc_netflows.csv")  # Adjust path as needed
-    netflow_data = netflow_repo.get_range(datetime(2018, 1, 1).date(), datetime(2024, 9, 1).date())
+    netflow_data = netflow_repo.get_range(start_date.date(), end_date.date())
 
     # find out how much money we would have if we always hold (buy btc)
     def no_do_func(data: List[ExchangeRateItem], fear_greed_data: List[FearGreedItem] = None, netflow_data: List[NetflowDto] = None) -> int:
@@ -760,7 +748,7 @@ def main():
     previous_code = None   # Store code that caused errors
 
     for attempt in range(1, args.attempts + 1):
-        console.rule(f"[bold]Attempt {attempt}/{args.attempts}")
+        logger.rule(f"Attempt {attempt}/{args.attempts}")
         
         try:
             # Determine if this should be an exploration attempt (every 4th attempt or first attempt)
@@ -770,8 +758,8 @@ def main():
             if recent_errors and previous_code and not explore_mode:
                 mode = "error_fix"
                 mode_style = "bright_red"
-                console.print(f"[bold {mode_style}]Mode: ERROR FIXING[/bold {mode_style}]")
-                console.print("[bold red]Errors detected - switching to error fixing mode[/bold red]")
+                logger.info(f"Mode: ERROR FIXING", style=f"bold {mode_style}")
+                logger.error("Errors detected - switching to error fixing mode")
             else:
                 # Either no errors or it's an exploration attempt that overrides error fixing
                 mode = "exploring" if explore_mode else "refinement"
@@ -779,17 +767,17 @@ def main():
                 mode_display = "EXPLORATION" if explore_mode else "REFINEMENT"
                 
                 if explore_mode and recent_errors:
-                    console.print(f"[bold {mode_style}]Mode: {mode_display} (overriding error fix)[/bold {mode_style}]")
+                    logger.info(f"Mode: {mode_display} (overriding error fix)", style=f"bold {mode_style}")
                 else:
-                    console.print(f"[bold {mode_style}]Mode: {mode_display}[/bold {mode_style}]")
+                    logger.info(f"Mode: {mode_display}", style=f"bold {mode_style}")
             
             # If there were errors in previous attempt, display them
             if recent_errors:
-                console.print("[bold red]Passing previous errors to LLM for correction:[/bold red]")
+                logger.error("Passing previous errors to LLM for correction:")
                 for error in recent_errors[:5]:  # Show first 5 errors
-                    console.print(f"[red]- {error}[/red]")
+                    logger.error(f"- {error}")
                 if len(recent_errors) > 5:
-                    console.print(f"[red]- Plus {len(recent_errors) - 5} more errors...[/red]")
+                    logger.error(f"- Plus {len(recent_errors) - 5} more errors...")
             
             # Generate and validate strategy with attempt number
             code = generate_trading_strategy(
@@ -814,7 +802,7 @@ def main():
                     strategy_desc = line.replace('# Strategy:', '').strip()
                     break
                     
-            console.print(f"[bold cyan]Approach: [/bold cyan][yellow]{strategy_desc}[/yellow]")
+            logger.info(f"Approach: {strategy_desc}", style="yellow")
             
             # Validate and simulate
             valid, message, errors = validate_strategy(money_if_never_sell, code, historical_data, fear_greed_data, netflow_data, debug=True)
@@ -822,7 +810,7 @@ def main():
             # Store errors for next attempt if needed
             if errors:
                 recent_errors = errors
-                console.print(f"[yellow]Found {len(errors)} errors to fix in next attempt[/yellow]")
+                logger.warning(f"Found {len(errors)} errors to fix in next attempt")
                 # We'll keep previous_code as it is, since it contains the errors
             else:
                 # Clear previous_code if no errors
@@ -844,40 +832,40 @@ def main():
                 best_value = current_value
                 best_code = code
                 mode_display = "ERROR FIXING" if mode == "error_fix" else "EXPLORATION" if mode == "exploring" else "REFINEMENT"
-                console.print(Panel.fit(
-                    f"[green]New Best Strategy: €{best_value:.2f}[/green]\n"
+                logger.panel(
+                    f"New Best Strategy: €{best_value:.2f}\n"
                     f"Approach: {strategy_desc}\n"
                     f"Mode: {mode_display}",
                     style="bold green"
-                ))
+                )
                 
                 # Save the best strategy immediately when a new record is hit
                 with open("best_strategy.py", "w") as f:
                     f.write(best_code)
-                console.print("[green]Saved best strategy to 'best_strategy.py'[/green]")
+                logger.success("Saved best strategy to 'best_strategy.py'")
 
             if best_value >= args.threshold:
-                console.print(f"[green]We made it :) Reached {best_value}[/green]")
+                logger.success(f"We made it :) Reached {best_value}")
                 break
 
         except Exception as e:
-            console.print(Panel(f"[red]Error: {str(e)}[/red]", title="Runtime Error"))
+            logger.panel(f"Error: {str(e)}", title="Runtime Error", style="red")
             recent_errors = [f"System error: {str(e)}"]
     
     # Final results
     if best_value > 0:
-        console.print(Panel.fit(
-            f"[bold]🏆 Best Result: €{best_value:.2f}[/bold]\n"
+        logger.panel(
+            f"🏆 Best Result: €{best_value:.2f}\n"
             f"Saving strategy to 'best_strategy.py'",
             style="green"
-        ))
+        )
         with open("best_strategy.py", "w") as f:
             f.write(best_code)
     else:
-        console.print(Panel.fit(
-            "[red]❌ Failed to generate valid strategy[/red]",
+        logger.panel(
+            "❌ Failed to generate valid strategy",
             style="bold red"
-        ))
+        )
         sys.exit(1)
 
 # 6. Update the test function to include Fear & Greed data
@@ -887,6 +875,9 @@ def test_app():
     fear_greed_items = []
     netflow_items = []
     start_date = datetime(2023, 9, 1)
+    
+    # Set debug level for test
+    logger.set_level(console_level=LogLevel.DEBUG)
     
     for day in range(30):
         current_date = start_date + timedelta(days=day)
@@ -976,7 +967,7 @@ def test_app():
                 info_str += f" (F&G: {today_fg.index} - {today_fg.index_text})"
                 # Example of using sentiment: Buy in extreme fear
                 if today_fg.index < 20 and current_day == datetime(2023, 10, 2):
-                    console.print(f"[green]Buying on Extreme Fear{info_str}[/green]")
+                    logger.success(f"Buying on Extreme Fear{info_str}")
                     return 1
         
         # Check netflow data
@@ -988,25 +979,25 @@ def test_app():
                 
                 # Example of using netflow: Sell when large inflows to exchanges (bearish)
                 if today_nf.aggregated_exchanges > 100 and current_day == datetime(2023, 10, 1):
-                    console.print(f"[red]Selling on high exchange inflow{info_str}[/red]")
+                    logger.error(f"Selling on high exchange inflow{info_str}")
                     return 2
                 
                 # Example of using netflow: Buy when large outflows from exchanges (bullish)
                 if today_nf.aggregated_exchanges < -150 and current_day == datetime(2023, 10, 2):
-                    console.print(f"[green]Buying on high exchange outflow{info_str}[/green]")
+                    logger.success(f"Buying on high exchange outflow{info_str}")
                     return 1
         
         if current_day == datetime(2023, 10, 1):
-            console.print(f"[yellow]Attempt to sell on Oct 1{info_str} (no BTC held yet)[/yellow]")
+            logger.warning(f"Attempt to sell on Oct 1{info_str} (no BTC held yet)")
             return 2  # Attempt to sell on Oct 1 (no BTC held yet)
         elif current_day == datetime(2023, 10, 2):
-            console.print(f"[green]Buy on Oct 2 at 2000{info_str}[/green]")
+            logger.success(f"Buy on Oct 2 at 2000{info_str}")
             return 1  # Buy on Oct 2 at 2000
         elif current_day == datetime(2023, 10, 3):
-            console.print(f"[blue]Hold on Oct 3{info_str}[/blue]")
+            logger.info(f"Hold on Oct 3{info_str}")
             return 0  # Hold on Oct 3
         
-        console.print(f"[blue]Default hold{info_str}[/blue]")
+        logger.debug(f"Default hold{info_str}")
         return 0  # Default: hold
     
     # Run the simulation with debug output
@@ -1018,15 +1009,15 @@ def test_app():
         debug=True
     )
     
-    print(f"\nTest Results:")
-    print(f"Expected final value: €1500.00")
-    print(f"Actual final value:   €{final_value:.2f}")
-    print(f"Value history: {[round(v, 2) for v in history]}")
+    logger.info("\nTest Results:")
+    logger.info(f"Expected final value: €1500.00")
+    logger.info(f"Actual final value:   €{final_value:.2f}")
+    logger.debug(f"Value history: {[round(v, 2) for v in history]}")
     
     if errors:
-        print(f"\nSimulation Errors:")
+        logger.error("\nSimulation Errors:")
         for error in errors:
-            print(f"- {error}")
+            logger.error(f"- {error}")
 
 if __name__ == "__main__":
     main()
