@@ -4,7 +4,10 @@ from typing import List, Dict, Optional, Tuple, Set
 import os
 from collections import defaultdict
 
+import pandas as pd
+
 from dto.NetflowDto import NetflowDto
+
 
 
 class DuplicateDateError(Exception):
@@ -137,7 +140,150 @@ class NetflowRepo:
         return sorted(self.data_by_date.values(), key=lambda x: x.date_time)
     
     @staticmethod
+    def normalize_exchanges_by_year(csv_file, output_file='repos/BtcNetflowNormalized.csv'):
+        """
+        Reads a CSV file, extracts DateTime and Aggregated Exchanges columns,
+        creates a new column AggrExchNormalized by normalizing the Aggregated Exchanges
+        to a range of -1 to 1 for each year, and writes the result to a new CSV file.
+        
+        Parameters:
+        -----------
+        csv_file : str
+            Path to the input CSV file
+        output_file : str, optional
+            Path to the output CSV file (default: 'BtcNetflowNormalized.csv')
+            
+        Returns:
+        --------
+        bool
+            True if successful, False otherwise
+        """
+        try:
+            # Read the CSV file
+            # For troubleshooting, explicitly set the encoding to utf-8
+            df = pd.read_csv(csv_file, header=0, encoding='utf-8')
+            print(f"Successfully read {len(df)} rows from {csv_file}")
+            
+            # Debug: print first few rows to verify data
+            print("First few rows of input data:")
+            print(df.head())
+            
+            # Clean column names (remove ** if present and strip whitespace)
+            df.columns = [col.replace('*', '').strip() for col in df.columns]
+            
+            # Extract only the DateTime and Aggregated Exchanges columns
+            # Use explicit column names to avoid issues with spaces
+            date_col = 'DateTime'
+            agg_exch_col = 'Aggregated Exchanges'
+            
+            # Verify the columns exist in the dataframe
+            if date_col not in df.columns or agg_exch_col not in df.columns:
+                print(f"Error: Required columns not found. Available columns: {df.columns.tolist()}")
+                return False
+                
+            # Extract only the columns we need
+            result_df = df[[date_col, agg_exch_col]].copy()
+            
+            # Debug: check if extraction worked
+            print(f"Extracted {len(result_df)} rows with DateTime and Aggregated Exchanges")
+            print(result_df.head())
+            
+            # Convert DateTime to datetime format
+            result_df[date_col] = pd.to_datetime(result_df[date_col])
+            
+            # Extract year from DateTime
+            result_df['Year'] = result_df[date_col].dt.year
+            
+            # Initialize the normalized column
+            result_df['AggrExchNormalized'] = 0.0
+            
+            # The sign convention for Aggregated Exchanges:
+            # Positive values indicate BTC flowing INTO exchanges (bearish - preparing to sell)
+            # Negative values indicate BTC flowing OUT OF exchanges (bullish - withdrawing to hold)
+            
+            # Process each year separately
+            years = result_df['Year'].unique()
+            print(f"Processing data for {len(years)} different years: {years}")
+            
+            for year in years:
+                year_mask = result_df['Year'] == year
+                year_data = result_df.loc[year_mask]
+                
+                print(f"Processing year {year} with {len(year_data)} rows")
+                
+                # Get positive and negative values separately
+                pos_mask = year_data[agg_exch_col] > 0
+                neg_mask = year_data[agg_exch_col] < 0
+                zero_mask = year_data[agg_exch_col] == 0
+                
+                pos_data = year_data.loc[pos_mask]
+                neg_data = year_data.loc[neg_mask]
+                zero_data = year_data.loc[zero_mask]
+                
+                print(f"Year {year}: {len(pos_data)} positive values, {len(neg_data)} negative values, {sum(zero_mask)} zeros")
+                
+                # Process positive values (normalize to 0 to 1)
+                if len(pos_data) > 0:
+                    pos_min = pos_data[agg_exch_col].min()
+                    pos_max = pos_data[agg_exch_col].max()
+                    
+                    if pos_max > pos_min:
+                        # Multiple positive values - normalize to range [0, 1]
+                        result_df.loc[pos_data.index, 'AggrExchNormalized'] = (
+                            (pos_data[agg_exch_col] - pos_min) / (pos_max - pos_min)
+                        )
+                    else:
+                        # Only one positive value or all are the same
+                        result_df.loc[pos_data.index, 'AggrExchNormalized'] = 1.0
+                
+                # Process negative values (normalize to -1 to 0)
+                if len(neg_data) > 0:
+                    neg_min = neg_data[agg_exch_col].min()
+                    neg_max = neg_data[agg_exch_col].max()
+                    
+                    if neg_max > neg_min:
+                        # Multiple negative values - normalize to range [-1, 0]
+                        result_df.loc[neg_data.index, 'AggrExchNormalized'] = (
+                            -1.0 + (neg_data[agg_exch_col] - neg_min) / (neg_max - neg_min)
+                        )
+                    else:
+                        # Only one negative value or all are the same
+                        result_df.loc[neg_data.index, 'AggrExchNormalized'] = -1.0
+                
+                # Zero values remain as 0.0
+                if len(zero_data) > 0:
+                    result_df.loc[zero_data.index, 'AggrExchNormalized'] = 0.0
+            
+            # Drop the temporary Year column
+            result_df = result_df.drop(columns=['Year'])
+            
+            # Write the result to the output CSV file
+            result_df.to_csv(output_file, index=False)
+            print(f"Successfully wrote {len(result_df)} rows to {output_file}")
+            print("First few rows of output:")
+            print(result_df.head())
+            
+            return True
+            
+        except Exception as e:
+            print(f"Error in normalize_exchanges_by_year: {str(e)}")
+            # Print stack trace for debugging
+            import traceback
+            traceback.print_exc()
+            return False
+    
+    @staticmethod
     def _next_day(d: date) -> date:
         """Helper method to get the next day."""
         from datetime import timedelta
         return d + timedelta(days=1)
+    
+
+if __name__ == "__main__":
+    # Replace 'data.csv' with your actual CSV file path
+    success = NetflowRepo.normalize_exchanges_by_year('repos/ITB_btc_netflows.csv')
+    
+    if success:
+        print("Data successfully written to BtcNetflowNormalized.csv")
+    else:
+        print("Failed to process and write data")

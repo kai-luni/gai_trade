@@ -65,34 +65,39 @@ class FearGreedRepo:
 
 
 
-    def read_csv_file(start: datetime, end: datetime, file_path="repos/fear_greed_data.csv", check_data=False):
+    def read_csv_file(start: datetime, end: datetime, file_path="repos/fear_greed_data.csv", check_data=True):
         """Reads the CSV file and returns the data as a list of FearGreedItem objects.
         
         Args:
             file_path (str): The path of the CSV file to read data from.
             start (datetime): The start date to filter the data.
             end (datetime): The end date to filter the data.
-            check_data (bool): Whether to check for missing dates.
-
+            check_data (bool): Whether to check for missing dates and duplicate entries.
+            
         Returns:
             list: A list of FearGreedItem objects.
-
+            
         Raises:
             Exception: If there is a missing entry in the given date range.
+            Exception: If there are duplicate entries for any date.
         """
         data = []
         unique_dates = set()
-
+        date_count = {}  # Track count of entries per date
+        
         with open(file_path, "r") as csvfile:
             reader = csv.reader(csvfile)
             next(reader)  # Skip header row if present
-
+            
             for row in reader:
                 if len(row) > 0:
                     timestamp = int(row[0])
                     date = datetime.fromtimestamp(timestamp).date()
-
+                    
                     if (start is None or date >= start.date()) and (end is None or date <= end.date()):
+                        # Track count of entries per date
+                        date_count[date] = date_count.get(date, 0) + 1
+                        
                         if date not in unique_dates:
                             unique_dates.add(date)
                             item = FearGreedItem(
@@ -105,12 +110,19 @@ class FearGreedRepo:
         
         if not check_data:
             return data
-
+            
         # Check for missing dates
         date_range = set(pd.date_range(start=start or min(unique_dates), end=end or max(unique_dates), freq='D').date)
         missing_dates = date_range - unique_dates
+        
         if missing_dates:
-            raise Exception(f"Missing data for the following dates: {', '.join(str(d) for d in missing_dates)}")
+            raise Exception(f"Missing data for the following dates: {', '.join(str(d) for d in sorted(missing_dates))}")
+        
+        # Check for duplicate entries
+        duplicate_dates = {date: count for date, count in date_count.items() if count > 1}
+        
+        if duplicate_dates:
+            raise Exception(f"Multiple entries found for the following dates: {', '.join(f'{d} ({count} entries)' for d, count in duplicate_dates.items())}")
         
         return data
 
