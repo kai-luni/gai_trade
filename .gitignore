@@ -5,3 +5,4 @@ test_dbBTC_EUR_echange_db.sqlite
 .env
 log.txt
 best_strategy.py
+trading_bot.log
