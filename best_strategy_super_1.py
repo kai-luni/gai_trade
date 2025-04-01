@@ -247,7 +247,7 @@ def main():
     
     # Define a common start and end date for all data sources
     start_date = datetime(2018, 2, 4)
-    end_date = datetime(2025, 1, 1)  # Using the latest common date from your data
+    end_date = datetime(2025, 3, 31)  # Using the latest common date from your data
     
     console.print(f"\n[bold]Data range: {start_date.date()} to {end_date.date()}[/bold]")
     
@@ -265,7 +265,7 @@ def main():
     fear_greed_items = FearGreedRepo.read_csv_file(start_date, end_date)
     
     # Load Netflow data
-    netflow_repo = NetflowRepo("repos/ITB_btc_netflows.csv")
+    netflow_repo = NetflowRepo("repos/BtcNetflowNormalized.csv")
     netflow_data = netflow_repo.get_range(start_date.date(), end_date.date())
     
     # Validate data lengths

@@ -43,11 +43,12 @@ class FearGreedRepo:
             for candle in candles:
                 timestamp = int(candle["timestamp"])
                 if timestamp not in existing_data:
-                    exchange_item = FearGreedItem()
-                    exchange_item.unix = timestamp
-                    exchange_item.index = int(candle["value"])
-                    exchange_item.index_text = candle["value_classification"]
-                    exchange_item.date = datetime.fromtimestamp(exchange_item.unix)
+                    exchange_item = FearGreedItem(
+                        unix=timestamp,
+                        date=datetime.fromtimestamp(timestamp),
+                        index=int(candle["value"]),
+                        index_text=candle["value_classification"]
+                    )
                     human_readable_date = exchange_item.date.strftime("%Y-%m-%d %H:%M:%S")
 
                     existing_data[exchange_item.unix] = [exchange_item.unix, exchange_item.index, exchange_item.index_text, human_readable_date]

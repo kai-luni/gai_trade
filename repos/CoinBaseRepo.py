@@ -163,7 +163,7 @@ class CoinBaseRepo:
 
 if __name__ == "__main__":
     start = datetime(2024, 11, 1)
-    end = datetime(2024, 12, 1)
+    end = datetime(2025, 5, 1)
     while start < datetime.now():
         CoinBaseRepo.fetch_daily_data('BTC', start, end)
         start = start + timedelta(days=30)
